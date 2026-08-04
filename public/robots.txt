@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
 
-# Replace slotly.example.com with your real domain.
-Sitemap: https://slotly.example.com/sitemap.xml
+Sitemap: https://slotly-timetable.vercel.app/sitemap.xml

@@ -62,9 +62,9 @@ Everything lives in your browser's `localStorage` under the key `schedule_v1` (s
 
 ## SEO / Search Console / Deployment Checklist
 
-The repo ships with SEO scaffolding that uses `https://slotly.example.com` as a placeholder. Before going live:
+The repo ships with SEO scaffolding pointed at `https://slotly-timetable.vercel.app/`. If you deploy elsewhere, update the domain in:
 
-1. **Set your real domain** — search for `slotly.example.com` and replace it in:
+1. **Set your real domain** — search for `slotly-timetable.vercel.app` and replace it in:
    - `index.html` (canonical, Open Graph, Twitter, JSON-LD)
    - `public/robots.txt`
    - `public/sitemap.xml`
