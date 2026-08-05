@@ -9,6 +9,7 @@ import CourseModal from "./components/CourseModal";
 import DeleteModal from "./components/DeleteModal";
 import SettingsDrawer from "./components/SettingsDrawer";
 import GeminiModal from "./components/GeminiModal";
+import GCalExportModal from "./components/GCalExportModal";
 import Toasts from "./components/Toasts";
 import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
@@ -42,6 +43,7 @@ export default function App() {
   const [pendingDelete, setPendingDelete] = useState<CourseEntry | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
+  const [showGCalExport, setShowGCalExport] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<WeekDay>("MON");
   const [exporting, setExporting] = useState<"jpg" | "pdf" | null>(null);
@@ -177,7 +179,7 @@ export default function App() {
     link.click();
     URL.revokeObjectURL(url);
     notify({
-      message: "Downloaded slotly-schedule.ics — import it in Google Calendar to add all classes.",
+      message: "Schedule downloaded — open the Google Calendar import page to add your classes.",
       kind: "info",
     });
   };
@@ -244,7 +246,7 @@ export default function App() {
             setSidebarOpen(false);
           }}
           onDelete={(course) => setPendingDelete(course)}
-          onExportIcs={exportIcs}
+          onExportIcs={() => setShowGCalExport(true)}
           onOpenGemini={() => {
             setShowGemini(true);
             setSidebarOpen(false);
@@ -383,7 +385,7 @@ export default function App() {
               }}
             >
               <Icon name="file" size={18} />
-              Import Google Calendar (.ics)
+              Import from Google Calendar
             </button>
             <a
               className="fab-menu-link"
@@ -394,7 +396,7 @@ export default function App() {
               onClick={() => setFabOpen(false)}
             >
               <Icon name="download" size={18} />
-              Get my study load (.ics)
+              Get my study load from Google Calendar
               <Icon name="external" size={13} className="btn-trailing" />
             </a>
             <button
@@ -406,18 +408,18 @@ export default function App() {
               }}
             >
               <Icon name="upload" size={18} />
-              Import backup
+              Restore backup
             </button>
             <button
               type="button"
               role="menuitem"
               onClick={() => {
                 setFabOpen(false);
-                exportIcs();
+                setShowGCalExport(true);
               }}
             >
               <Icon name="calendar" size={18} />
-              Export to .ics
+              Export to Google Calendar
             </button>
             <button
               type="button"
@@ -506,6 +508,13 @@ export default function App() {
         <GeminiModal
           onImport={mergeCourses}
           onClose={() => setShowGemini(false)}
+        />
+      )}
+
+      {showGCalExport && (
+        <GCalExportModal
+          onDownload={exportIcs}
+          onClose={() => setShowGCalExport(false)}
         />
       )}
 

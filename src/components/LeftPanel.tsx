@@ -104,7 +104,7 @@ export default function LeftPanel({
           onClick={onRequestIcs}
         >
           <Icon name="file" size={15} />
-          Import Google Calendar (.ics)
+          Import from Google Calendar
         </button>
         <a
           className="btn-ghost integration-btn"
@@ -113,7 +113,7 @@ export default function LeftPanel({
           rel="noreferrer"
         >
           <Icon name="download" size={15} />
-          Get my study load (.ics)
+          Get my study load from Google Calendar
           <Icon name="external" size={13} className="btn-trailing" />
         </a>
         <button
@@ -123,18 +123,18 @@ export default function LeftPanel({
           disabled={courses.length === 0}
         >
           <Icon name="upload" size={15} />
-          Export to .ics (into Google Calendar)
+          Export to Google Calendar
         </button>
         <div className="integration-subrow">
           <button type="button" className="btn-link" onClick={exportBackup}>
-            Export backup
+            Download backup
           </button>
           <button
             type="button"
             className="btn-link"
             onClick={onRequestBackup}
           >
-            Import backup
+            Restore backup
           </button>
         </div>
       </div>
