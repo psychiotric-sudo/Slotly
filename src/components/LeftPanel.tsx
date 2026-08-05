@@ -15,7 +15,6 @@ interface LeftPanelProps {
   onDelete: (course: CourseEntry) => void;
   onExportIcs: () => void;
   onOpenGemini: () => void;
-  onRequestIcs: () => void;
   onRequestBackup: () => void;
 }
 
@@ -30,7 +29,6 @@ export default function LeftPanel({
   onDelete,
   onExportIcs,
   onOpenGemini,
-  onRequestIcs,
   onRequestBackup,
 }: LeftPanelProps) {
   const exportBackup = () => {
@@ -97,14 +95,6 @@ export default function LeftPanel({
         <button type="button" className="btn-ghost integration-btn" onClick={onOpenGemini}>
           <Icon name="sparkles" size={15} />
           Import from Gemini AI
-        </button>
-        <button
-          type="button"
-          className="btn-ghost integration-btn"
-          onClick={onRequestIcs}
-        >
-          <Icon name="file" size={15} />
-          Import from Google Calendar
         </button>
         <a
           className="btn-ghost integration-btn"

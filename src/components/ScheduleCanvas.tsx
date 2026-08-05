@@ -1,14 +1,15 @@
 import { useMemo, forwardRef } from "react";
+import type { CSSProperties } from "react";
 import type { CourseEntry, WeekDay } from "../types";
-import { DAY_LABELS } from "../types";
+import { DAY_LABELS, DAY_SHORT } from "../types";
 import Icon from "./icons";
 import { layoutCourses } from "../utils/conflicts";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { darkenHex, effectiveColor } from "../utils/colors";
 import {
-  DAY_COLUMN_MAP,
   getGridRowSpan,
   formatTime12,
+  measureTextWidth,
   minutesLabel,
   timeToMinutes,
 } from "../utils/time";
@@ -22,6 +23,7 @@ interface ScheduleCanvasProps {
   onEdit: (course: CourseEntry) => void;
   showConflictBadges?: boolean;
   zoom?: number;
+  fontSize?: number;
 }
 
 function buildTimeLabels(startHour: number, endHour: number, slotMinutes: number): string[] {
@@ -36,7 +38,7 @@ function buildTimeLabels(startHour: number, endHour: number, slotMinutes: number
     const end = formatTime12(
       minutesLabel(Math.floor(endMin / 60), endMin % 60)
     ).replace(/\s*[AP]M$/i, "");
-    labels.push(`${start}–\u200B${end}`);
+    labels.push(`${start}–${end}`);
   }
   return labels;
 }
@@ -52,6 +54,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       onEdit,
       showConflictBadges = true,
       zoom = 1,
+      fontSize = 12,
     },
     ref
   ) {
@@ -91,7 +94,16 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       () => `${64 * zoom}px repeat(${rowCount}, ${40 * zoom}px)`,
       [rowCount, zoom]
     );
-    const gridTemplateColumns = `76px repeat(${activeDays.length}, minmax(${150 * zoom}px, 1fr))`;
+
+    const timeColWidth = useMemo(() => {
+      let max = 0;
+      for (const l of timeLabels) {
+        max = Math.max(max, measureTextWidth(l, `500 ${fontSize - 1}px Outfit`));
+      }
+      return Math.ceil(max) + 20;
+    }, [timeLabels, fontSize]);
+
+    const gridTemplateColumns = `${timeColWidth}px repeat(${activeDays.length}, minmax(${150 * zoom}px, 1fr))`;
 
     const byDay = new Map<WeekDay, (typeof laidOut)[number][]>();
     for (const c of laidOut) {
@@ -100,8 +112,19 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       byDay.set(c.day, list);
     }
 
+    const condensed = zoom < 0.8;
+
+    const colIndex = new Map<WeekDay, number>(
+      activeDays.map((day, i) => [day, i + 2])
+    );
+
     return (
-      <div className="schedule-canvas" ref={ref} data-export-root>
+      <div
+        className="schedule-canvas"
+        ref={ref}
+        data-export-root
+        style={{ "--grid-font": `${fontSize}px` } as CSSProperties}
+      >
         <div
           className="schedule-grid"
           style={{
@@ -123,12 +146,12 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                 data-day-header={day}
                 style={{
                   gridRow: "1 / 2",
-                  gridColumn: `${DAY_COLUMN_MAP[day]} / span 1`,
+                  gridColumn: `${colIndex.get(day)} / span 1`,
                   animationDelay: `${i * 40}ms`,
                 }}
               >
-                <strong>{DAY_LABELS[day]}</strong>
-                <span className="day-count">{dayCourses.length}</span>
+                <strong>{condensed ? DAY_SHORT[day].toUpperCase() : DAY_LABELS[day]}</strong>
+                {!condensed && <span className="day-count">{dayCourses.length}</span>}
               </div>
             );
           })}
@@ -147,7 +170,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
           })}
 
           {activeDays.map((day) => {
-            const col = DAY_COLUMN_MAP[day];
+            const col = colIndex.get(day)!;
             return Array.from({ length: totalSlots }).map((_, i) => {
               const row = i + 2;
               const isMidSlot =
@@ -178,14 +201,14 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                 <button
                   key={course.id}
                   type="button"
-                  className={`course-block${conflicting ? " has-conflict" : ""}`}
+                  className={`course-block${conflicting ? " has-conflict" : ""}${condensed ? " course-block--condensed" : ""}`}
                   style={{
-                    gridColumn: `${DAY_COLUMN_MAP[course.day]} / span 1`,
+                    gridColumn: `${colIndex.get(course.day)} / span 1`,
                     gridRow: `${gridRowStart} / ${gridRowEnd}`,
                     backgroundColor: color,
                     color: textColor,
                     borderColor: darkenHex(color, 0.28),
-                    width: `calc(${course.widthPercent}% - 6px)`,
+                    width: `${course.widthPercent}%`,
                     marginLeft: `${course.leftOffsetPercent}%`,
                   }}
                   onClick={() => onEdit(course)}
@@ -200,21 +223,29 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                       <Icon name="alert" size={13} />
                     </span>
                   )}
-                  <span className="course-block__title">
-                    {course.title || course.code}
-                  </span>
-                  {course.title && course.code && (
-                    <span className="course-block__code">{course.code}</span>
-                  )}
-                  <span className="course-block__meta">
-                    {formatTime12(course.startTime)}–{formatTime12(course.endTime)}
-                  </span>
-                  {(course.room || course.instructor) && (
-                    <span className="course-block__meta">
-                      {course.instructor}
-                      {course.instructor && course.room ? " · " : ""}
-                      {course.room}
+                  {condensed ? (
+                    <span className="course-block__code">
+                      {course.code || course.title}
                     </span>
+                  ) : (
+                    <>
+                      <span className="course-block__title">
+                        {course.title || course.code}
+                      </span>
+                      {course.title && course.code && (
+                        <span className="course-block__code">{course.code}</span>
+                      )}
+                      <span className="course-block__meta">
+                        {formatTime12(course.startTime)}–{formatTime12(course.endTime)}
+                      </span>
+                      {(course.room || course.instructor) && (
+                        <span className="course-block__meta">
+                          {course.instructor}
+                          {course.instructor && course.room ? " · " : ""}
+                          {course.room}
+                        </span>
+                      )}
+                    </>
                   )}
                 </button>
               );

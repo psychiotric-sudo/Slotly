@@ -37,6 +37,45 @@ export function effectiveColor(course: CourseEntry): string {
   return course.colorOverride ?? getAutoColor(courseGroupKey(course));
 }
 
+/**
+ * Assigns each distinct subject/course a unique palette color so no two
+ * different courses collide. Existing overrides are kept; already-used colors
+ * are skipped when handing out new ones.
+ */
+export function assignUniqueColors(
+  incoming: CourseEntry[],
+  existing: CourseEntry[] = []
+): CourseEntry[] {
+  const used = new Set(existing.flatMap((c) => (c.colorOverride ? [c.colorOverride] : [])));
+  const resolved = new Map<string, string>();
+
+  const groupFor = (c: CourseEntry) => courseGroupKey(c);
+  const colorFor = (c: CourseEntry): string => {
+    if (c.colorOverride) return c.colorOverride;
+    const group = groupFor(c);
+    if (resolved.has(group)) return resolved.get(group)!;
+    let candidate = getAutoColor(group);
+    if (!used.has(candidate)) used.add(candidate);
+    else {
+      for (let i = 0; i < PALETTE.length; i++) {
+        const alt = PALETTE[i].hex;
+        if (!used.has(alt)) {
+          candidate = alt;
+          used.add(alt);
+          break;
+        }
+      }
+    }
+    resolved.set(group, candidate);
+    return candidate;
+  };
+
+  return incoming.map((c) => {
+    const color = colorFor(c);
+    return c.colorOverride ? c : { ...c, colorOverride: color };
+  });
+}
+
 export function isPastel(hex: string): boolean {
   return PALETTE.some((c) => c.hex.toLowerCase() === hex.toLowerCase());
 }

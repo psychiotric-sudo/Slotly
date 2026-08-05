@@ -54,6 +54,9 @@ export interface ScheduleSettings {
   slotMinutes: 15 | 30;
   activeDays: WeekDay[];
   theme: Theme;
+  fontSize: number;
+  sundayFirst: boolean;
+  showConflictBadges: boolean;
 }
 
 export interface ScheduleState {

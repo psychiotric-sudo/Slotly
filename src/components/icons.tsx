@@ -20,7 +20,9 @@ export type IconName =
   | "file"
   | "check"
   | "chevron-right"
-  | "inbox";
+  | "inbox"
+  | "image"
+  | "pdf";
 
 const PATHS: Record<IconName, string[]> = {
   plus: ["M12 5v14", "M5 12h14"],
@@ -94,6 +96,19 @@ const PATHS: Record<IconName, string[]> = {
   inbox: [
     "M22 12h-6l-2 3h-4l-2-3H2",
     "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z",
+  ],
+  image: [
+    "M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z",
+    "M21 15l-5-5L5 21",
+    "M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
+  ],
+  pdf: [
+    "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z",
+    "M14 2v6h6",
+    "M9 15v-3",
+    "M9 12h2.5a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9",
+    "M15 12h1.5",
+    "M16.5 12v3",
   ],
 };
 

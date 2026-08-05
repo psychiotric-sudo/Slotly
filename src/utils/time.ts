@@ -75,3 +75,24 @@ export function formatTime12(time: string): string {
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
+
+/** Best-effort canvas width of text in the given font (falls back to estimate). */
+export function measureTextWidth(text: string, font: string): number {
+  try {
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (!ctx) return estimateTextWidth(text);
+    ctx.font = font;
+    if ("letterSpacing" in ctx) (ctx as CanvasRenderingContext2D).letterSpacing = "0em";
+    return ctx.measureText(text).width;
+  } catch {
+    return estimateTextWidth(text);
+  }
+}
+
+/** Rough px estimate when canvas measuring is unavailable. */
+export function estimateTextWidth(text: string, fontSize = 12): number {
+  const narrow = /[iIl.,:;\s]/g;
+  let w = 0;
+  for (const ch of text) w += narrow.test(ch) ? 0.3 : 0.55;
+  return w * fontSize;
+}

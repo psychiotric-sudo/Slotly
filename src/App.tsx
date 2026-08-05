@@ -15,7 +15,7 @@ import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
 import { layoutCourses } from "./utils/conflicts";
 import { buildIcs, GOOGLE_CALENDAR_EXPORT_URL } from "./utils/gcal";
-import { DAY_SHORT, WEEK_DAYS } from "./types";
+import { WEEK_DAYS } from "./types";
 
 export default function App() {
   const api = useSchedule();
@@ -48,7 +48,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<WeekDay>("MON");
   const [exporting, setExporting] = useState<"jpg" | "pdf" | null>(null);
   const [gridZoom, setGridZoom] = useState(1);
+  const [fabMenu, setFabMenu] = useState<"import" | "export" | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+
+  const closeFab = () => {
+    setFabOpen(false);
+    setFabMenu(null);
+  };
 
   const importers = useImporters(mergeCourses);
 
@@ -117,11 +123,14 @@ export default function App() {
   );
 
   /** Shown days: weekdays Mon–Fri by default, plus any day that has a class. */
-  const visibleDays = useMemo(() => {
+  const visibleDays = useMemo<WeekDay[]>(() => {
     const scheduled = new Set(courses.map((c) => c.day));
     const defaults = new Set(["MON", "TUE", "WED", "THU", "FRI"]);
-    return WEEK_DAYS.filter((d) => defaults.has(d) || scheduled.has(d));
-  }, [courses]);
+    const base: WeekDay[] = settings.sundayFirst
+      ? ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+      : WEEK_DAYS;
+    return base.filter((d) => defaults.has(d) || scheduled.has(d));
+  }, [courses, settings.sundayFirst]);
 
   /** Export only shows days that actually have a class. */
   const exportDays = useMemo(
@@ -184,17 +193,6 @@ export default function App() {
     });
   };
 
-  const scrollToDay = (day: WeekDay) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const header = container.querySelector<HTMLElement>(`[data-day-header="${day}"]`);
-    if (!header) return;
-    const containerRect = container.getBoundingClientRect();
-    const headerRect = header.getBoundingClientRect();
-    const left = headerRect.left - containerRect.left + container.scrollLeft;
-    container.scrollTo({ left, behavior: "smooth" });
-  };
-
   const handleScroll = () => {
     const container = scrollRef.current;
     if (!container) return;
@@ -251,7 +249,6 @@ export default function App() {
             setShowGemini(true);
             setSidebarOpen(false);
           }}
-          onRequestIcs={importers.requestIcs}
           onRequestBackup={importers.requestBackup}
         />
 
@@ -260,20 +257,53 @@ export default function App() {
         )}
 
         <section className="schedule-section">
-          <div className="day-tab-strip" role="tablist" aria-label="Jump to day">
-            {visibleDays.map((day) => (
+          <div className="export-bar">
+              <div className="zoom-controls" role="group" aria-label="Zoom timetable">
+                <button
+                  type="button"
+                  className="zoom-btn"
+                  onClick={() => setGridZoom((z) => clampZoom(z / 1.2))}
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                >
+                  −
+                </button>
+                <span className="zoom-label">{Math.round(gridZoom * 100)}%</span>
+                <button
+                  type="button"
+                  className="zoom-btn"
+                  onClick={() => setGridZoom((z) => clampZoom(z * 1.2))}
+                  aria-label="Zoom in"
+                  title="Zoom in"
+                >
+                  +
+                </button>
+              </div>
               <button
-                key={day}
                 type="button"
-                role="tab"
-                aria-selected={activeTab === day}
-                className={`day-tab${activeTab === day ? " active" : ""}`}
-                onClick={() => scrollToDay(day)}
+                className="btn-secondary"
+                onClick={() => handleExport("jpg")}
+                disabled={exporting !== null || courses.length === 0}
               >
-                {DAY_SHORT[day]}
+                <Icon name="image" size={16} />
+                {exporting === "jpg" ? "Rendering…" : "Save as Image"}
               </button>
-            ))}
-          </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => handleExport("pdf")}
+                disabled={exporting !== null || courses.length === 0}
+              >
+                <Icon name="pdf" size={16} />
+                {exporting === "pdf" ? "Rendering…" : "Save as PDF"}
+              </button>
+              <span className="export-hint">
+                {courses.length} class{courses.length === 1 ? "" : "es"}
+                {conflictsCount > 0
+                  ? ` · ${conflictsCount} overlap${conflictsCount === 1 ? "" : "s"}`
+                  : ""}
+              </span>
+            </div>
 
           <div
             ref={scrollRef}
@@ -288,61 +318,32 @@ export default function App() {
               activeDays={visibleDays}
               onEdit={openEdit}
               zoom={gridZoom}
+              showConflictBadges={settings.showConflictBadges}
+              fontSize={settings.fontSize}
             />
-          </div>
-
-          <div className="export-bar">
-            <div className="zoom-controls" role="group" aria-label="Zoom timetable">
-              <button
-                type="button"
-                className="zoom-btn"
-                onClick={() => setGridZoom((z) => clampZoom(z / 1.2))}
-                aria-label="Zoom out"
-                title="Zoom out"
-              >
-                −
-              </button>
-              <span className="zoom-label">{Math.round(gridZoom * 100)}%</span>
-              <button
-                type="button"
-                className="zoom-btn"
-                onClick={() => setGridZoom((z) => clampZoom(z * 1.2))}
-                aria-label="Zoom in"
-                title="Zoom in"
-              >
-                +
-              </button>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => handleExport("jpg")}
-              disabled={exporting !== null || courses.length === 0}
-            >
-              {exporting === "jpg" ? "Rendering…" : "Export JPG"}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => handleExport("pdf")}
-              disabled={exporting !== null || courses.length === 0}
-            >
-              {exporting === "pdf" ? "Rendering…" : "Export PDF"}
-            </button>
-            <span className="export-hint">
-              {courses.length} class{courses.length === 1 ? "" : "es"}
-              {conflictsCount > 0
-                ? ` · ${conflictsCount} overlap${conflictsCount === 1 ? "" : "s"}`
-                : ""}
-            </span>
           </div>
         </section>
       </main>
 
+      <footer className="app-credit">
+        <span>Created by</span>
+        <a
+          href="https://t.me/drnx64"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="app-credit-link"
+        >
+          @drnx64
+        </a>
+      </footer>
+
       <button
         type="button"
         className={`fab${fabOpen ? " open" : ""}`}
-        onClick={() => setFabOpen((v) => !v)}
+        onClick={() => {
+          setFabOpen((v) => !v);
+          setFabMenu(null);
+        }}
         aria-label={fabOpen ? "Close quick actions" : "Quick actions"}
         aria-expanded={fabOpen}
       >
@@ -351,99 +352,134 @@ export default function App() {
 
       {fabOpen && (
         <>
-          <div className="fab-backdrop" onClick={() => setFabOpen(false)} />
+          <div className="fab-backdrop" onClick={closeFab} />
           <div className="fab-menu" role="menu" aria-label="Quick actions">
-            <button
-              type="button"
-              className="fab-menu-add"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                openAdd();
-              }}
-            >
-              <Icon name="plus" size={18} />
-              Add Class
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                setShowGemini(true);
-              }}
-            >
-              <Icon name="sparkles" size={18} />
-              Import from Gemini AI
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                importers.requestIcs();
-              }}
-            >
-              <Icon name="file" size={18} />
-              Import from Google Calendar
-            </button>
-            <a
-              className="fab-menu-link"
-              role="menuitem"
-              href={GOOGLE_CALENDAR_EXPORT_URL}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setFabOpen(false)}
-            >
-              <Icon name="download" size={18} />
-              Get my study load from Google Calendar
-              <Icon name="external" size={13} className="btn-trailing" />
-            </a>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                importers.requestBackup();
-              }}
-            >
-              <Icon name="upload" size={18} />
-              Restore backup
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                setShowGCalExport(true);
-              }}
-            >
-              <Icon name="calendar" size={18} />
-              Export to Google Calendar
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setFabOpen(false);
-                loadDemo();
-              }}
-            >
-              <Icon name="inbox" size={18} />
-              Load Demo Data
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="fab-menu-danger"
-              onClick={() => {
-                setFabOpen(false);
-                clearAll();
-              }}
-            >
-              <Icon name="trash" size={18} />
-              Clear All
-            </button>
+            {fabMenu === "import" ? (
+              <div key="import" className="fab-menu-sub">
+                <button
+                  type="button"
+                  className="fab-menu-back"
+                  role="menuitem"
+                  onClick={() => setFabMenu(null)}
+                >
+                  <Icon name="chevron-right" size={16} className="fab-back-chev" />
+                  Import
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    setShowGemini(true);
+                  }}
+                >
+                  <Icon name="sparkles" size={18} />
+                  From Gemini AI
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    importers.requestBackup();
+                  }}
+                >
+                  <Icon name="upload" size={18} />
+                  Restore backup
+                </button>
+              </div>
+            ) : fabMenu === "export" ? (
+              <div key="export" className="fab-menu-sub">
+                <button
+                  type="button"
+                  className="fab-menu-back"
+                  role="menuitem"
+                  onClick={() => setFabMenu(null)}
+                >
+                  <Icon name="chevron-right" size={16} className="fab-back-chev" />
+                  Export
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    setShowGCalExport(true);
+                  }}
+                >
+                  <Icon name="calendar" size={18} />
+                  To Google Calendar
+                </button>
+                <a
+                  className="fab-menu-link"
+                  role="menuitem"
+                  href={GOOGLE_CALENDAR_EXPORT_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={closeFab}
+                >
+                  <Icon name="download" size={18} />
+                  Get my study load from Google Calendar
+                  <Icon name="external" size={13} className="btn-trailing" />
+                </a>
+              </div>
+            ) : (
+              <div key="root" className="fab-menu-sub">
+                <button
+                  type="button"
+                  className="fab-menu-add"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    openAdd();
+                  }}
+                >
+                  <Icon name="plus" size={18} />
+                  Add Class
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setFabMenu("import")}
+                >
+                  <Icon name="file" size={18} />
+                  Import
+                  <Icon name="chevron-right" size={15} className="btn-trailing" />
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setFabMenu("export")}
+                >
+                  <Icon name="calendar" size={18} />
+                  Export
+                  <Icon name="chevron-right" size={15} className="btn-trailing" />
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    loadDemo();
+                  }}
+                >
+                  <Icon name="inbox" size={18} />
+                  Load Demo Data
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="fab-menu-danger"
+                  onClick={() => {
+                    closeFab();
+                    clearAll();
+                  }}
+                >
+                  <Icon name="trash" size={18} />
+                  Clear All
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -501,6 +537,10 @@ export default function App() {
           settings={settings}
           onUpdate={updateSettings}
           onClose={() => setShowSettings(false)}
+          onResetDemo={() => {
+            loadDemo();
+            setShowSettings(false);
+          }}
         />
       )}
 

@@ -2,7 +2,7 @@ import type { CourseEntry, WeekDay } from "../types";
 
 export const GEMINI_PROMPT = `You are converting a class schedule into JSON for the Slotly timetable app.
 
-Look at the schedule in the image/text and extract every class meeting. Output ONLY valid JSON — no markdown, no code fences, no explanations — in this exact shape:
+Look at the schedule in the image/text and extract every class meeting. Output your answer as a markdown code block tagged \`json\` containing ONLY valid JSON — no extra text, no explanations — in this exact shape:
 
 {
   "courses": [
@@ -24,7 +24,7 @@ Rules:
 - "day" must be exactly one of: MON, TUE, WED, THU, FRI, SAT, SUN.
 - If the schedule is a photo, read the times and days exactly as printed on it.
 - Include every class. Do not invent or skip any.
-- The JSON must be valid — it will be parsed programmatically.`;
+- Put the JSON inside a markdown code block like \`\`\`json ... \`\`\`. The JSON must be valid — it will be parsed programmatically.`;
 
 const DAY_ALIASES: Record<string, WeekDay> = {
   MON: "MON", MONDAY: "MON",

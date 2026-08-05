@@ -8,7 +8,7 @@ import {
   STORAGE_KEY,
 } from "../utils/persistence";
 import { buildDemoCourses } from "../data/demo";
-import { courseGroupKey } from "../utils/colors";
+import { assignUniqueColors, courseGroupKey } from "../utils/colors";
 
 export type ToastKind = "success" | "danger" | "info";
 
@@ -191,7 +191,8 @@ export function useSchedule() {
         historyRef.current.shift();
       }
       futureRef.current = [];
-      setCourses([...coursesRef.current, ...incoming]);
+      const colored = assignUniqueColors(incoming, coursesRef.current);
+      setCourses([...coursesRef.current, ...colored]);
       pushToast({
         message: `Added ${incoming.length} class${incoming.length === 1 ? "" : "es"} from ${label}`,
         kind: "success",

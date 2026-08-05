@@ -2,7 +2,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import type { CourseEntry, WeekDay } from "../types";
 import { DAY_LABELS } from "../types";
-import { formatTime12, timeToMinutes } from "../utils/time";
+import { formatTime12, measureTextWidth, timeToMinutes } from "../utils/time";
 import { darkenHex, effectiveColor } from "../utils/colors";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { layoutCourses, rangesOverlap } from "../utils/conflicts";
@@ -63,14 +63,20 @@ function exportDaysOf(data: ExportTableData): WeekDay[] {
  */
 function computeGeometry(data: ExportTableData): GridGeometry {
   const days = exportDaysOf(data);
-  const { slots } = effectiveRange(
+  const { start, slots } = effectiveRange(
     data.courses,
     data.startHour,
     data.endHour,
     data.slotMinutes
   );
 
-  const baseW = GUTTER + days.length * COL_W;
+  let autoGut = GUTTER;
+  for (let s = 0; s < slots; s++) {
+    const label = timeIntervalLabel(s, start, data.slotMinutes);
+    autoGut = Math.max(autoGut, Math.ceil(measureTextWidth(label, "700 11px Inter")) + 16);
+  }
+
+  const baseW = autoGut + days.length * COL_W;
   const baseH = HEADER_H + slots * ROW_H;
 
   const page = A4[baseW >= baseH ? "landscape" : "portrait"];
@@ -79,7 +85,7 @@ function computeGeometry(data: ExportTableData): GridGeometry {
   const targetAspect = usableW / usableH;
   const aspect = baseW / baseH;
 
-  let gut = GUTTER;
+  let gut = autoGut;
   let colW = COL_W;
   let headerH = HEADER_H;
   let rowH = ROW_H;
@@ -207,10 +213,9 @@ function buildExportGrid(
     width: `${width}px`,
     height: `${height}px`,
     background: "#ffffff",
-    fontFamily: 'Arial, Helvetica, "Segoe UI", sans-serif',
+    fontFamily: 'Inter, Arial, Helvetica, "Segoe UI", sans-serif',
     fontSize: "11px",
     color: "#111111",
-    border: "1px solid #b3b3b3",
     boxSizing: "border-box",
   });
 
@@ -227,8 +232,10 @@ function buildExportGrid(
     background: DAY_BG,
     color: DAY_TEXT,
     fontWeight: "700",
-    borderRight: "1px solid #90a488",
-    borderBottom: "1px solid #90a488",
+    borderLeft: "2px solid #90a488",
+    borderTop: "2px solid #90a488",
+    borderRight: "2px solid #90a488",
+    borderBottom: "2px solid #90a488",
     boxSizing: "border-box",
   });
   root.appendChild(corner);
@@ -268,10 +275,10 @@ function buildExportGrid(
       height: `${rowH}px`,
       lineHeight: `${rowH}px`,
       textAlign: "right",
-      paddingRight: "8px",
+      paddingRight: "12px",
       background: TIME_BG,
       color: TIME_TEXT,
-      fontWeight: "600",
+      fontWeight: "700",
       borderRight: "1px solid #d9c276",
       borderBottom: "1px solid #d9c276",
       boxSizing: "border-box",
@@ -318,8 +325,8 @@ function buildExportGrid(
         background: color,
         color: textColor,
         border: conflicting
-          ? "2px solid #ef4444"
-          : `1px solid ${darkenHex(color, 0.3)}`,
+          ? "1px solid #ef4444"
+          : `1px solid ${darkenHex(color, 0.45)}`,
         padding: "6px 8px",
         boxSizing: "border-box",
         overflow: "hidden",
@@ -330,7 +337,7 @@ function buildExportGrid(
           ? [{ text: course.code, strong: false }]
           : []),
         {
-          text: `${formatTime12(course.startTime)}–${formatTime12(course.endTime)}`,
+          text: `${formatTime12(course.startTime).replace(/\s*[AP]M$/i, "")}–${formatTime12(course.endTime).replace(/\s*[AP]M$/i, "")}`,
           strong: false,
         },
         ...(course.room ? [{ text: course.room, strong: false }] : []),
@@ -349,35 +356,29 @@ async function renderTableToCanvas(
   await document.fonts.ready;
 
   const grid = buildExportGrid(data, geometry);
+  grid.style.margin = `${padding}px`;
 
   const wrapper = document.createElement("div");
   Object.assign(wrapper.style, {
     position: "fixed",
     left: "-9999px",
     top: "0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: `${padding}px`,
     background: "#ffffff",
     boxSizing: "border-box",
+    width: `${geometry.width + padding * 2}px`,
+    height: `${geometry.height + padding * 2}px`,
   });
   wrapper.appendChild(grid);
   document.body.appendChild(wrapper);
 
   try {
-    const canvasWidth = Math.max(geometry.width + padding * 2, 1);
-    const canvasHeight = Math.max(geometry.height + padding * 2, 1);
-    wrapper.style.width = `${canvasWidth}px`;
-    wrapper.style.height = `${canvasHeight}px`;
-
+    const canvasWidth = wrapper.offsetWidth;
+    const canvasHeight = wrapper.offsetHeight;
     return await html2canvas(wrapper, {
       scale: EXPORT_SCALE,
       useCORS: true,
       backgroundColor: "#ffffff",
       logging: false,
-      x: 0,
-      y: 0,
       width: canvasWidth,
       height: canvasHeight,
       windowWidth: EXPORT_WIDTH,
@@ -422,3 +423,4 @@ export async function exportToPDF(
   pdf.addImage(imgData, "JPEG", PDF_MARGIN, PDF_MARGIN, renderWidth, renderHeight);
   pdf.save(filename);
 }
+

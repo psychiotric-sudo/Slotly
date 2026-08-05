@@ -9,6 +9,9 @@ export const DEFAULT_SETTINGS: ScheduleSettings = {
   slotMinutes: 30,
   activeDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
   theme: "dark",
+  fontSize: 12,
+  sundayFirst: false,
+  showConflictBadges: true,
 };
 
 const WEEK_DAY_SET: ReadonlySet<string> = new Set([
@@ -67,6 +70,15 @@ export function normalizeSettings(
   }
   if (settings.theme === "light" || settings.theme === "dark") {
     base.theme = settings.theme;
+  }
+  if (typeof settings.fontSize === "number" && settings.fontSize >= 10 && settings.fontSize <= 16) {
+    base.fontSize = settings.fontSize;
+  }
+  if (typeof settings.sundayFirst === "boolean") {
+    base.sundayFirst = settings.sundayFirst;
+  }
+  if (typeof settings.showConflictBadges === "boolean") {
+    base.showConflictBadges = settings.showConflictBadges;
   }
   return base;
 }
