@@ -2,7 +2,7 @@ import { useState } from "react";
 import Modal from "./Modal";
 import Icon from "./icons";
 import { GEMINI_PROMPT, parseGeminiJson } from "../utils/gemini";
-import { GEMINI_URL } from "../utils/gcal";
+import { GEMINI_URL, openGeminiApp } from "../utils/gcal";
 import type { CourseEntry } from "../types";
 
 interface GeminiModalProps {
@@ -61,8 +61,15 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
               <a href={GEMINI_URL} target="_blank" rel="noreferrer">
                 upload it to Gemini <Icon name="external" size={13} />
               </a>
-              .
+              , or open the Gemini app directly.
             </p>
+            <button
+              type="button"
+              className="btn-secondary gemini-open-app"
+              onClick={openGeminiApp}
+            >
+              Open Google Gemini <Icon name="external" size={13} className="btn-trailing" />
+            </button>
           </li>
           <li>
             <p>Copy the prompt below, paste it into Gemini, and send it.</p>

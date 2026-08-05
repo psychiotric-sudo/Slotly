@@ -181,16 +181,29 @@ export default function App() {
     if (courses.length === 0) return;
     const ics = buildIcs(courses);
     const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "slotly-schedule.ics";
-    link.click();
-    URL.revokeObjectURL(url);
+    if ("download" in HTMLAnchorElement.prototype) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "slotly-schedule.ics";
+      document.body.appendChild(link);
+      link.click();
+      // Defer cleanup so the browser has time to actually start the download,
+      // otherwise revoking the object URL can cancel it.
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1500);
+    } else {
+      // Older fallback for very old browsers.
+      const msNav = navigator as Navigator & { msSaveBlob?: (blob: Blob, name: string) => void };
+      msNav.msSaveBlob?.(blob, "slotly-schedule.ics");
+    }
     notify({
-      message: "Schedule downloaded — open the Google Calendar import page to add your classes.",
+      message: "Schedule downloaded — redirecting you to the Google Calendar import page.",
       kind: "info",
     });
+    window.open(GOOGLE_CALENDAR_EXPORT_URL, "_blank", "noopener,noreferrer");
   };
 
   const handleScroll = () => {

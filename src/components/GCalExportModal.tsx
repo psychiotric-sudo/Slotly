@@ -1,8 +1,6 @@
 import Modal from "./Modal";
 import Icon from "./icons";
 
-const GCAL_IMPORT_URL = "https://calendar.google.com/calendar/r/settings/export";
-
 interface GCalExportModalProps {
   onDownload: () => void;
   onClose: () => void;
@@ -22,17 +20,17 @@ export default function GCalExportModal({ onDownload, onClose }: GCalExportModal
 
       <div className="modal-body">
         <p>
-          Slotly downloads a small calendar file (.ics) containing all your classes.
-          Import it in Google Calendar to add them automatically.
+          Slotly downloads a small calendar file (.ics) containing all your classes,
+          then opens the Google Calendar import page so you can add them automatically.
         </p>
         <ol className="step-list">
           <li>
-            Tap <strong>Download .ics file</strong> below to save it to your device.
+            Tap <strong>Download &amp; redirect</strong> below — Slotly saves the file
+            and opens the Google Calendar import page in a new tab.
           </li>
-          <li>Open the Google Calendar import page.</li>
           <li>
-            Under <strong>Import &amp; export → Import</strong>, choose the downloaded
-            file, pick the calendar to add it to, then click Import.
+            On the import page, choose the downloaded file, pick which calendar to add
+            it to, then click <strong>Import</strong>.
           </li>
         </ol>
         <p className="modal-hint">
@@ -43,12 +41,11 @@ export default function GCalExportModal({ onDownload, onClose }: GCalExportModal
 
       <footer className="modal-footer">
         <div className="footer-spacer" />
-        <a className="btn-secondary" href={GCAL_IMPORT_URL} target="_blank" rel="noreferrer">
-          Open Google Calendar import page
-          <Icon name="external" size={13} className="btn-trailing" />
-        </a>
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          Cancel
+        </button>
         <button type="button" className="btn-primary" data-default-focus onClick={onDownload}>
-          <Icon name="download" size={16} /> Download .ics file
+          <Icon name="download" size={16} /> Download &amp; redirect
         </button>
       </footer>
     </Modal>

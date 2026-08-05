@@ -312,3 +312,34 @@ function escapeIcsText(text: string): string {
 export const GOOGLE_CALENDAR_EXPORT_URL =
   "https://calendar.google.com/calendar/u/2/r/settings/export";
 export const GEMINI_URL = "https://gemini.google.com/app";
+
+/**
+ * Opens the installed Google Gemini app when available, otherwise falls back to
+ * opening the Gemini web app in the browser. On Android it uses an intent with a
+ * fallback to Play Store; on iOS it tries the app scheme then the App Store.
+ */
+export function openGeminiApp(): void {
+  const userAgent =
+  navigator.userAgent ||
+  navigator.vendor ||
+  ((window as { opera?: string }).opera ?? "");
+
+  if (/android/i.test(userAgent)) {
+    window.location.href =
+      "intent://open#Intent;" +
+      "scheme=googleapp;" +
+      "package=com.google.android.apps.bard;" +
+      "S.browser_fallback_url=https://play.google.com/store/apps/details?id=com.google.android.apps.bard;" +
+      "end";
+  } else if (/iPad|iPhone|iPod/.test(userAgent) && !(window as { MSStream?: unknown }).MSStream) {
+    const now = Date.now();
+    window.location.href = "googleapp://";
+    setTimeout(() => {
+      if (Date.now() - now < 2000) {
+        window.open("https://apps.apple.com/us/app/google-gemini/id1583097472", "_blank");
+      }
+    }, 1500);
+  } else {
+    window.open(GEMINI_URL, "_blank", "noopener,noreferrer");
+  }
+}

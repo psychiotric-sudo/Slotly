@@ -225,7 +225,7 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  height: 48px;
   padding: 0 var(--space-3);
   background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
   -webkit-backdrop-filter: blur(12px);
@@ -253,7 +253,7 @@ a:hover {
 }
 
 .brand-name {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -545,8 +545,8 @@ a:hover {
   background: none;
   border: none;
   cursor: pointer;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   display: inline-flex;
@@ -609,15 +609,15 @@ a:hover {
   border: none;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.01em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-4);
-  min-height: 38px;
+  padding: var(--space-1) var(--space-3);
+  min-height: 32px;
   transition: transform 0.12s ease, opacity 0.12s ease, border-color 0.15s ease,
     background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -923,12 +923,12 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
   flex-shrink: 0;
 }
 
