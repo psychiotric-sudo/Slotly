@@ -23,8 +23,11 @@ const ROW_H = 34;
 const COL_W = 150;
 
 const PDF_MARGIN = 10; // mm of white around the table on each side of the page
-const PDF_PADDING = 3; // px frame so html2canvas doesn't clip the grid's outer border
+const PDF_PADDING = 14; // px bottom frame that also holds the site watermark
 const JPG_PADDING = 24; // px of white frame around the JPG image
+
+/** Current site origin (host only, e.g. "slotly-timetable.vercel.app" or "localhost:5173"). */
+const SITE_URL = window.location.host;
 const A4: Record<"portrait" | "landscape", { w: number; h: number }> = {
   portrait: { w: 210, h: 297 },
   landscape: { w: 297, h: 210 },
@@ -369,6 +372,26 @@ async function renderTableToCanvas(
     height: `${geometry.height + padding * 2}px`,
   });
   wrapper.appendChild(grid);
+
+  // Watermark lives in the outer white frame so it never covers table content.
+  const watermark = document.createElement("div");
+  watermark.textContent = SITE_URL;
+  Object.assign(watermark.style, {
+    position: "absolute",
+    left: "0",
+    bottom: "0",
+    padding: "0 0 6px 12px",
+    fontFamily: 'Inter, Arial, Helvetica, "Segoe UI", sans-serif',
+    fontSize: "10px",
+    fontWeight: "400",
+    color: "#9ca3af",
+    lineHeight: "1",
+    whiteSpace: "nowrap",
+    fontVariantNumeric: "tabular-nums",
+    letterSpacing: "0.02em",
+  });
+  wrapper.appendChild(watermark);
+
   document.body.appendChild(wrapper);
 
   try {

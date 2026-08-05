@@ -41,12 +41,18 @@ export function useSchedule() {
 
   const coursesRef = useRef(courses);
   coursesRef.current = courses;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const skipSaveRef = useRef(false);
 
+  // Save synchronously (no delayed timer) so a suspended tab can never fire a
+  // stale autosave that resurrects older data over a newer write.
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      saveState({ courses, settings });
-    }, 400);
-    return () => window.clearTimeout(timer);
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+    saveState({ courses, settings });
   }, [courses, settings]);
 
   useEffect(() => {
@@ -61,6 +67,7 @@ export function useSchedule() {
       if (!loaded) return;
       historyRef.current = [];
       futureRef.current = [];
+      skipSaveRef.current = true;
       setCourses(loaded.courses);
       setSettings(normalizeSettings(loaded.settings));
     };
