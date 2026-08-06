@@ -1,14 +1,12 @@
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
-import type { CourseEntry, WeekDay } from "../types";
+import type { CourseEntry, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
 import { DAY_LABELS } from "../types";
-import { formatTime12, measureTextWidth, timeToMinutes } from "../utils/time";
+import type { GridRowModel } from "../utils/time";
+import { bandTimeLabel, buildGridRowModel, fitBlockContent, formatTime12, measureTextWidth, timeToMinutes } from "../utils/time";
 import { darkenHex, effectiveColor } from "../utils/colors";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { layoutCourses, rangesOverlap } from "../utils/conflicts";
 
-const EXPORT_SCALE = 2;
-const EXPORT_WIDTH = 1800;
+const EXPORT_SCALE = 1.25;
 
 const TIME_BG = "#FDE047";
 const TIME_TEXT = "#713F12";
@@ -35,10 +33,13 @@ const A4: Record<"portrait" | "landscape", { w: number; h: number }> = {
 
 export interface ExportTableData {
   courses: CourseEntry[];
+  breaks: ScheduleBreak[];
   activeDays: WeekDay[];
   startHour: number;
   endHour: number;
-  slotMinutes: 15 | 30;
+  slotMinutes: SlotMinutes;
+  showBreaks: boolean;
+  simplifyExport: boolean;
 }
 
 const DAY_ORDER: WeekDay[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -50,6 +51,7 @@ interface GridGeometry {
   rowH: number;
   width: number;
   height: number;
+  rows: GridRowModel[];
 }
 
 /**
@@ -72,21 +74,35 @@ function exportDaysOf(data: ExportTableData): WeekDay[] {
  */
 function computeGeometry(data: ExportTableData): GridGeometry {
   const days = exportDaysOf(data);
-  const { start, slots } = effectiveRange(
+  const { start, totalSlots } = effectiveRange(
     data.courses,
+    data.breaks,
     data.startHour,
     data.endHour,
     data.slotMinutes
   );
+  const { rows } = buildGridRowModel(
+    data.courses,
+    data.breaks,
+    start,
+    data.slotMinutes,
+    totalSlots,
+    data.simplifyExport
+  );
+  const rowsCount = rows.length;
 
   let autoGut = GUTTER;
-  for (let s = 0; s < slots; s++) {
-    const label = timeIntervalLabel(s, start, data.slotMinutes);
-    autoGut = Math.max(autoGut, Math.ceil(measureTextWidth(label, "700 11px Inter")) + 16);
+  for (const row of rows) {
+    // Measure each label with the exact font it is drawn in. The +24 leaves
+    // room for the right inset (label is drawn at gut-12, truncated at gut-24)
+    // so the widest label always fits — Excel-style autofit for the column.
+    const label = bandTimeLabel(row);
+    const font = row.occupied ? `700 11px ${FONT}` : `italic 500 11px ${FONT}`;
+    autoGut = Math.max(autoGut, Math.ceil(measureTextWidth(label, font)) + 24);
   }
 
   const baseW = autoGut + days.length * COL_W;
-  const baseH = HEADER_H + slots * ROW_H;
+  const baseH = HEADER_H + rowsCount * ROW_H;
 
   const page = A4[baseW >= baseH ? "landscape" : "portrait"];
   const usableW = page.w - PDF_MARGIN * 2;
@@ -115,359 +131,356 @@ function computeGeometry(data: ExportTableData): GridGeometry {
     headerH,
     rowH,
     width: gut + days.length * colW,
-    height: headerH + slots * rowH,
+    height: headerH + rowsCount * rowH,
+    rows,
   };
 }
 
-interface TableLine {
-  text: string;
-  strong: boolean;
-  fontSize?: number;
-  pinnedToBottom?: boolean;
+const FONT = 'Inter, Arial, Helvetica, "Segoe UI", sans-serif';
+
+/** Yields to the browser so React can paint the latest progress value. */
+const nextPaint = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+/** Fills a rectangle with a solid colour. */
+function fillRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
+/** Strokes a 1px rectangle, inset by half a pixel so the line stays crisp. */
+function strokeCell(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string): void {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
 
-function timeIntervalLabel(slotIndex: number, startHour: number, slotMinutes: number): string {
-  const startMin = startHour * 60 + slotIndex * slotMinutes;
-  const endMin = startMin + slotMinutes;
-  const start = formatTime12(`${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}`).replace(
-    /\s*[AP]M$/i,
-    ""
-  );
-  const end = formatTime12(`${pad(Math.floor(endMin / 60))}:${pad(endMin % 60)}`).replace(
-    /\s*[AP]M$/i,
-    ""
-  );
-  return `${start}–${end}`;
-}
-
-/** Rows/columns that fully cover every course (same rule as the on-screen grid). */
-function effectiveRange(
-  courses: CourseEntry[],
-  startHour: number,
-  endHour: number,
-  slotMinutes: number
-): { start: number; endMinutes: number; slots: number } {
-  let earliest = Infinity;
-  let latest = -Infinity;
-  for (const c of courses) {
-    earliest = Math.min(earliest, timeToMinutes(c.startTime));
-    latest = Math.max(latest, timeToMinutes(c.endTime));
-  }
-  const courseStartHour = courses.length ? Math.floor(earliest / 60) : startHour;
-  const courseEndRounded =
-    courses.length > 0 ? Math.ceil(latest / slotMinutes) * slotMinutes : -Infinity;
-  const start = courseStartHour < startHour ? 0 : startHour;
-  const endMinutes = Math.max(endHour * 60, courseEndRounded + slotMinutes);
-  return { start, endMinutes, slots: (endMinutes - start * 60) / slotMinutes };
-}
-
-function appendLines(container: HTMLElement, lines: TableLine[]): void {
-  lines.forEach((line) => {
-    if (line.text === "") return;
-    const span = document.createElement("span");
-    span.textContent = line.text;
-    span.style.display = "block";
-    if (line.strong) span.style.fontWeight = "700";
-    if (line.fontSize) span.style.fontSize = `${line.fontSize}px`;
-    if (line.pinnedToBottom) span.style.marginTop = "auto";
-    container.appendChild(span);
-  });
-}
-
-/** Ids of every course that shares its day/time range with another course. */
-function findConflictingIds(courses: CourseEntry[]): Set<string> {
-  const result = new Set<string>();
-  for (let i = 0; i < courses.length; i++) {
-    for (let j = i + 1; j < courses.length; j++) {
-      const a = courses[i];
-      const b = courses[j];
-      if (a.day !== b.day) continue;
-      if (rangesOverlap(a.startTime, a.endTime, b.startTime, b.endTime)) {
-        result.add(a.id);
-        result.add(b.id);
-      }
+/** Draws text, optionally truncating with an ellipsis when it would exceed maxWidth. */
+function drawText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  font: string,
+  color: string,
+  align: CanvasTextAlign = "left",
+  ellipsis = true
+): void {
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = align;
+  ctx.textBaseline = "middle";
+  let out = text;
+  if (ellipsis && maxWidth > 0 && ctx.measureText(out).width > maxWidth) {
+    while (out.length > 1 && ctx.measureText(out + "…").width > maxWidth) {
+      out = out.slice(0, -1);
     }
+    out += "…";
   }
-  return result;
+  ctx.fillText(out, x, y);
 }
 
 /**
- * Renders the timetable as a spreadsheet-style grid of absolutely-positioned
- * boxes. Plain divs + px coordinates render reliably in html2canvas — unlike
- * <table> rowSpans, which html2canvas mis-renders and drops columns for.
+ * Draws the timetable directly onto a <canvas> with the 2D API. Rendering is
+ * fast and does not block the main thread (unlike html2canvas, which rasterizes
+ * synchronously and freezes the tab), so real progress can be reported at each
+ * phase and the UI stays responsive while the export is prepared.
  */
-function buildExportGrid(
+async function renderTableCanvas(
   data: ExportTableData,
-  geometry: GridGeometry
-): HTMLDivElement {
-  const { courses, slotMinutes } = data;
-  const days = exportDaysOf(data);
-  const { start, slots } = effectiveRange(
-    courses,
-    data.startHour,
-    data.endHour,
-    slotMinutes
-  );
-  const { gut, colW, headerH, rowH } = geometry;
-  const conflictIds = findConflictingIds(courses);
-  const laidOut = layoutCourses(courses);
+  geometry: GridGeometry,
+  padding = 0,
+  onProgress?: (pct: number) => void
+): Promise<HTMLCanvasElement> {
+  onProgress?.(4);
+  // Wait for webfonts so text metrics are final, but never let a slow font
+  // load freeze the export — bail after 600ms if fonts aren't ready.
+  await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
+  onProgress?.(8);
 
+  const { courses, breaks = [], showBreaks = true } = data;
+  const days = exportDaysOf(data);
+  const { gut, colW, headerH, rowH, rows } = geometry;
+  const dayCount = days.length;
   const width = geometry.width;
   const height = geometry.height;
 
-  const root = document.createElement("div");
-  Object.assign(root.style, {
-    position: "relative",
-    width: `${width}px`,
-    height: `${height}px`,
-    background: "#ffffff",
-    fontFamily: 'Inter, Arial, Helvetica, "Segoe UI", sans-serif',
-    fontSize: "11px",
-    color: "#111111",
-    boxSizing: "border-box",
-  });
+  // Clamp the rendered resolution. A full (non-simplified) grid makes one row
+  // per slot, and the page-fill scaling can swell the canvas to tens of
+  // millions of pixels; the synchronous JPEG encode of that would block the
+  // main thread and freeze the tab. Bound the total pixels (and each side)
+  // so the encode always stays fast, while keeping proportions intact.
+  const logicalW = width + padding * 2;
+  const logicalH = height + padding * 2;
+  const MAX_PIXELS = 6_500_000;
+  const MAX_DIM = 8192;
+  const scale = Math.min(
+    EXPORT_SCALE,
+    MAX_DIM / logicalW,
+    MAX_DIM / logicalH,
+    Math.sqrt(MAX_PIXELS / (logicalW * logicalH))
+  );
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.ceil(logicalW * scale));
+  canvas.height = Math.max(1, Math.ceil(logicalH * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas rendering is not supported in this browser.");
 
-  const frame = document.createElement("div");
-  Object.assign(frame.style, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    width: `${width}px`,
-    height: `${height}px`,
-    border: "3px solid #b0b0b0",
-    boxSizing: "border-box",
-    pointerEvents: "none",
-    zIndex: "10",
-  });
-  root.appendChild(frame);
+  ctx.scale(scale, scale);
+  ctx.translate(padding, padding);
 
-  const corner = document.createElement("div");
-  corner.textContent = "Time";
-  Object.assign(corner.style, {
-    position: "absolute",
-    left: "0",
-    top: "0",
-    width: `${gut}px`,
-    height: `${headerH}px`,
-    lineHeight: `${headerH}px`,
-    paddingLeft: "12px",
-    background: DAY_BG,
-    color: DAY_TEXT,
-    fontWeight: "700",
-    borderLeft: "2px solid #90a488",
-    borderTop: "2px solid #90a488",
-    borderRight: "2px solid #90a488",
-    borderBottom: "2px solid #90a488",
-    boxSizing: "border-box",
-  });
-  root.appendChild(corner);
+  // White base fills the whole export frame (including the padding gutter).
+  fillRect(ctx, -padding, -padding, width + padding * 2, height + padding * 2, "#ffffff");
 
-  for (let i = 0; i < days.length; i++) {
-const th = document.createElement("div");
-    th.textContent = DAY_LABELS[days[i]].toUpperCase();
-    Object.assign(th.style, {
-      position: "absolute",
-      left: `${gut + i * colW}px`,
-      top: "0",
-      width: `${colW}px`,
-      height: `${headerH}px`,
-      lineHeight: `${headerH}px`,
-      textAlign: "center",
-      background: DAY_BG,
-      color: DAY_TEXT,
-      fontWeight: "700",
-      fontSize: "12px",
-      borderRight: "1px solid #90a488",
-      borderBottom: "1px solid #90a488",
-      boxSizing: "border-box",
-    });
-    root.appendChild(th);
+  // Outer frame.
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#b0b0b0";
+  ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+
+  // Corner cell ("Time").
+  fillRect(ctx, 0, 0, gut, headerH, DAY_BG);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#90a488";
+  ctx.strokeRect(0, 0, gut, headerH);
+  drawText(ctx, "Time", 12, headerH / 2, gut - 24, `700 13px ${FONT}`, DAY_TEXT, "left");
+
+  // Day headers.
+  for (let i = 0; i < dayCount; i++) {
+    const x = gut + i * colW;
+    fillRect(ctx, x, 0, colW, headerH, DAY_BG);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#90a488";
+    ctx.strokeRect(x + 0.5, 0.5, colW - 1, headerH - 1);
+    drawText(ctx, DAY_LABELS[days[i]].toUpperCase(), x + colW / 2, headerH / 2, colW - 8, `700 12px ${FONT}`, DAY_TEXT, "center");
   }
+  onProgress?.(16);
+  await nextPaint();
 
-  for (let s = 0; s < slots; s++) {
-    const top = headerH + s * rowH;
+  // Row cells (time column + day grid, or the merged FREE TIME row).
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const top = headerH + r * rowH;
+    const isMerged = !row.occupied;
+    // Free time after the last class is left blank (no FREE TIME band).
+    const isTrailingFree = isMerged && r === rows.length - 1;
 
-    const timeCell = document.createElement("div");
-    timeCell.textContent = timeIntervalLabel(s, start, slotMinutes);
-    Object.assign(timeCell.style, {
-      position: "absolute",
-      left: "0",
-      top: `${top}px`,
-      width: `${gut}px`,
-      height: `${rowH}px`,
-      lineHeight: `${rowH}px`,
-      textAlign: "right",
-      paddingRight: "12px",
-      background: TIME_BG,
-      color: TIME_TEXT,
-      fontWeight: "700",
-      borderRight: "1px solid #d9c276",
-      borderBottom: "1px solid #d9c276",
-      boxSizing: "border-box",
-      whiteSpace: "nowrap",
-      fontVariantNumeric: "tabular-nums",
-    });
-    root.appendChild(timeCell);
+    if (isTrailingFree) {
+      fillRect(ctx, 0, top, gut, rowH, TIME_BG);
+      strokeCell(ctx, 0, top, gut, rowH, "#d9c276");
+      drawText(ctx, bandTimeLabel(row), gut - 12, top + rowH / 2, gut - 24, `700 11px ${FONT}`, TIME_TEXT, "right", false);
+      for (let i = 0; i < dayCount; i++) {
+        const x = gut + i * colW;
+        fillRect(ctx, x, top, colW, rowH, "#ffffff");
+        strokeCell(ctx, x, top, colW, rowH, GRID_LINE);
+      }
+      if (r % 4 === 3) {
+        onProgress?.(16 + Math.round(((r + 1) / rows.length) * 26));
+        await nextPaint();
+      }
+      continue;
+    }
 
-    for (let i = 0; i < days.length; i++) {
-      const cell = document.createElement("div");
-      Object.assign(cell.style, {
-        position: "absolute",
-        left: `${gut + i * colW}px`,
-        top: `${top}px`,
-        width: `${colW}px`,
-        height: `${rowH}px`,
-        background: "#ffffff",
-        borderRight: `1px solid ${GRID_LINE}`,
-        borderBottom: `1px solid ${GRID_LINE}`,
-        boxSizing: "border-box",
-      });
-      root.appendChild(cell);
+    fillRect(ctx, 0, top, gut, rowH, isMerged ? "#f6f2ea" : TIME_BG);
+    strokeCell(ctx, 0, top, gut, rowH, isMerged ? "#e0d7c6" : "#d9c276");
+    drawText(
+      ctx,
+      bandTimeLabel(row),
+      gut - 12,
+      top + rowH / 2,
+      gut - 24,
+      isMerged ? `italic 500 11px ${FONT}` : `700 11px ${FONT}`,
+      isMerged ? "#8a8177" : TIME_TEXT,
+      "right",
+      false
+    );
+
+    if (isMerged) {
+      fillRect(ctx, gut, top, dayCount * colW, rowH, "#f6f2ea");
+      strokeCell(ctx, gut, top, dayCount * colW, rowH, GRID_LINE);
+      drawText(
+        ctx,
+        "FREE TIME",
+        gut + (dayCount * colW) / 2,
+        top + rowH / 2,
+        dayCount * colW - 16,
+        `italic 500 11px ${FONT}`,
+        "#8a8177",
+        "center"
+      );
+    } else {
+      for (let i = 0; i < dayCount; i++) {
+        const x = gut + i * colW;
+        fillRect(ctx, x, top, colW, rowH, "#ffffff");
+        strokeCell(ctx, x, top, colW, rowH, GRID_LINE);
+      }
+    }
+
+    if (r % 4 === 3) {
+      onProgress?.(16 + Math.round(((r + 1) / rows.length) * 26));
+      await nextPaint();
     }
   }
+  onProgress?.(42);
+  await nextPaint();
 
-  laidOut
-    .filter((c) => days.includes(c.day))
-    .forEach((course) => {
-      const dayIndex = days.indexOf(course.day);
-      const startSlot = (timeToMinutes(course.startTime) - start * 60) / slotMinutes;
-      const endSlot = (timeToMinutes(course.endTime) - start * 60) / slotMinutes;
-      const span = Math.max(1, Math.round(endSlot - startSlot));
-      const color = effectiveColor(course);
-      const textColor = getAccessibleTextColor(color);
-      const conflicting = conflictIds.has(course.id);
+  const minuteToY = (min: number): number => {
+    let acc = headerH;
+    for (const row of rows) {
+      if (min <= row.endMin) {
+        const span = row.endMin - row.startMin;
+        return span > 0 ? acc + ((min - row.startMin) / span) * rowH : acc;
+      }
+      acc += rowH;
+    }
+    return acc;
+  };
 
-      const block = document.createElement("div");
-      Object.assign(block.style, {
-        position: "absolute",
-        left: `${gut + dayIndex * colW + (course.leftOffsetPercent / 100) * colW}px`,
-        top: `${headerH + startSlot * rowH}px`,
-        width: `${(course.widthPercent / 100) * colW}px`,
-        height: `${span * rowH}px`,
-        background: color,
-        color: textColor,
-        border: conflicting
-          ? "1px solid #ef4444"
-          : `1px solid ${darkenHex(color, 0.12)}`,
-        padding: "6px 8px",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        fontSize: "12px",
-        display: "flex",
-        flexDirection: "column",
+  // Break strips.
+  if (showBreaks) {
+    breaks
+      .filter((b) => timeToMinutes(b.endTime) > timeToMinutes(b.startTime))
+      .forEach((br) => {
+        const yTop = minuteToY(timeToMinutes(br.startTime));
+        const yBottom = minuteToY(timeToMinutes(br.endTime));
+        const bh = Math.max(2, yBottom - yTop);
+        fillRect(ctx, gut, yTop, dayCount * colW, bh, "#f3f3f4");
+        strokeCell(ctx, gut, yTop, dayCount * colW, bh, "#d9c276");
+        drawText(
+          ctx,
+          br.label,
+          gut + (dayCount * colW) / 2,
+          yTop + bh / 2,
+          dayCount * colW - 16,
+          `italic 500 12px ${FONT}`,
+          "#5a5a5a",
+          "center"
+        );
       });
-      appendLines(block, [
-        { text: course.title || course.code, strong: true, fontSize: 13 },
-        ...(course.title && course.code
-          ? [{ text: course.code, strong: false, fontSize: 12 }]
-          : []),
-        {
-          text: `${formatTime12(course.startTime).replace(/\s*[AP]M$/i, "")}–${formatTime12(course.endTime).replace(/\s*[AP]M$/i, "")}`,
-          strong: false,
-          fontSize: 11,
-        },
-        ...(course.room ? [{ text: course.room, strong: false, fontSize: 10 }] : []),
-        ...(course.instructor
-          ? [
-              {
-                text: course.instructor,
-                strong: false,
-                fontSize: 10,
-                pinnedToBottom: true,
-              },
-            ]
-          : []),
-      ]);
-      root.appendChild(block);
-    });
-
-  return root;
-}
-
-async function renderTableToCanvas(
-  data: ExportTableData,
-  geometry: GridGeometry,
-  padding = 0
-): Promise<HTMLCanvasElement> {
-  await document.fonts.ready;
-
-  const grid = buildExportGrid(data, geometry);
-  grid.style.margin = `${padding}px`;
-
-  const wrapper = document.createElement("div");
-  Object.assign(wrapper.style, {
-    position: "fixed",
-    left: "-9999px",
-    top: "0",
-    background: "#ffffff",
-    boxSizing: "border-box",
-    width: `${geometry.width + padding * 2}px`,
-    height: `${geometry.height + padding * 2}px`,
-  });
-  wrapper.appendChild(grid);
-
-  // Watermark lives in the outer white frame so it never covers table content.
-  const watermark = document.createElement("div");
-  watermark.textContent = SITE_URL;
-  Object.assign(watermark.style, {
-    position: "absolute",
-    left: "0",
-    bottom: "0",
-    padding: "0 0 6px 12px",
-    fontFamily: 'Inter, Arial, Helvetica, "Segoe UI", sans-serif',
-    fontSize: "10px",
-    fontWeight: "400",
-    color: "#9ca3af",
-    lineHeight: "1",
-    whiteSpace: "nowrap",
-    fontVariantNumeric: "tabular-nums",
-    letterSpacing: "0.02em",
-  });
-  wrapper.appendChild(watermark);
-
-  document.body.appendChild(wrapper);
-
-  try {
-    const canvasWidth = wrapper.offsetWidth;
-    const canvasHeight = wrapper.offsetHeight;
-    return await html2canvas(wrapper, {
-      scale: EXPORT_SCALE,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      width: canvasWidth,
-      height: canvasHeight,
-      windowWidth: EXPORT_WIDTH,
-    });
-  } finally {
-    wrapper.remove();
   }
+  onProgress?.(58);
+  await nextPaint();
+
+  // Course blocks.
+  const conflictIds = findConflictingIds(courses, breaks);
+  const laidOut = layoutCourses(courses);
+  const visible = laidOut.filter((c) => days.includes(c.day));
+  for (let i = 0; i < visible.length; i++) {
+    const course = visible[i];
+    const dayIndex = days.indexOf(course.day);
+    const yTop = minuteToY(timeToMinutes(course.startTime));
+    const yBottom = minuteToY(timeToMinutes(course.endTime));
+    const color = effectiveColor(course);
+    const textColor = getAccessibleTextColor(color);
+    const conflicting = conflictIds.has(course.id);
+    const blockWidth = (course.widthPercent / 100) * colW;
+    const blockHeight = Math.max(2, yBottom - yTop);
+    const x = gut + dayIndex * colW + (course.leftOffsetPercent / 100) * colW;
+    const timeLine = `${formatTime12(course.startTime).replace(/\s*[AP]M$/i, "")}–${formatTime12(
+      course.endTime
+    ).replace(/\s*[AP]M$/i, "")}`;
+    const codeLabel = course.section ? `${course.code} · ${course.section}` : course.code;
+    const fit = fitBlockContent(
+      [
+        course.title || codeLabel,
+        ...(course.title && course.code ? [codeLabel] : []),
+        ...(course.room || course.instructor
+          ? [[course.instructor, course.room].filter(Boolean).join(" · ")]
+          : []),
+      ],
+      blockWidth,
+      blockHeight,
+      12,
+      "Inter",
+      8,
+      1.3,
+      { wrap: true, keepLast: timeLine, titleWeight: "700", bodyWeight: "400" }
+    );
+
+    fillRect(ctx, x, yTop, blockWidth, blockHeight, color);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = conflicting ? "#ef4444" : darkenHex(color, 0.12);
+    ctx.strokeRect(x + 0.5, yTop + 0.5, blockWidth - 1, blockHeight - 1);
+
+    const padX = 8;
+    const padY = 6;
+    const maxTextW = blockWidth - padX * 2;
+    const lineH = Math.round(fit.fontSize * 1.3);
+    const lastY = yTop + blockHeight - padY - lineH / 2;
+    let lineY = yTop + padY + lineH / 2;
+    fit.lines.forEach((line, li) => {
+      if (lineY > lastY) return;
+      const isTime = /^\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}$/.test(line);
+      drawText(
+        ctx,
+        line,
+        x + padX,
+        lineY,
+        maxTextW,
+        `${li < fit.boldCount ? "700" : "400"} ${fit.fontSize}px ${FONT}`,
+        textColor,
+        "left",
+        !isTime
+      );
+      lineY += lineH;
+    });
+
+    if (i % 2 === 1) {
+      onProgress?.(Math.min(88, 58 + Math.round(((i + 1) / visible.length) * 30)));
+      await nextPaint();
+    }
+  }
+  onProgress?.(88);
+  await nextPaint();
+
+  // Watermark in the outer frame (bottom-left), like the old DOM export.
+  if (padding > 0) {
+    drawText(ctx, SITE_URL, 12 - padding, height + padding - 6, width, `400 10px ${FONT}`, "#9ca3af", "left");
+  }
+
+  return canvas;
 }
 
 export async function exportToJPG(
   data: ExportTableData,
-  filename = "schedule.jpg"
+  filename = "schedule.jpg",
+  onProgress?: (pct: number) => void
 ): Promise<void> {
   const geometry = computeGeometry(data);
-  const canvas = await renderTableToCanvas(data, geometry, JPG_PADDING);
-  const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+  onProgress?.(3);
+  const canvas = await renderTableCanvas(data, geometry, JPG_PADDING, onProgress);
+  onProgress?.(90);
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.92)
+  );
+  if (!blob) throw new Error("Could not encode the schedule image.");
+  onProgress?.(97);
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = dataUrl;
+  link.href = url;
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  onProgress?.(100);
 }
 
 export async function exportToPDF(
   data: ExportTableData,
-  filename = "schedule.pdf"
+  filename = "schedule.pdf",
+  onProgress?: (pct: number) => void
 ): Promise<void> {
   const geometry = computeGeometry(data);
-  const canvas = await renderTableToCanvas(data, geometry, PDF_PADDING);
-  const imgData = canvas.toDataURL("image/jpeg", 0.95);
+  onProgress?.(3);
+  // jsPDF is large (~390 kB), so only load it for actual PDF exports. JPG
+  // exports never touch it. Start the fetch before rendering so it happens in
+  // parallel with the draw and adds no extra wall-clock time.
+  const jspdfPromise = import("jspdf");
+  const canvas = await renderTableCanvas(data, geometry, PDF_PADDING, onProgress);
+  onProgress?.(90);
+  const imgData = canvas.toDataURL("image/jpeg", 0.92);
+  onProgress?.(95);
+  const { jsPDF } = await jspdfPromise;
 
   const page = A4[geometry.width >= geometry.height ? "landscape" : "portrait"];
 
@@ -482,5 +495,60 @@ export async function exportToPDF(
 
   pdf.addImage(imgData, "JPEG", PDF_MARGIN, PDF_MARGIN, renderWidth, renderHeight);
   pdf.save(filename);
+  onProgress?.(100);
 }
 
+/** Ids of every course that overlaps another course or a scheduled break. */
+function findConflictingIds(
+  courses: CourseEntry[],
+  breaks: ScheduleBreak[] = []
+): Set<string> {
+  const result = new Set<string>();
+  for (let i = 0; i < courses.length; i++) {
+    for (let j = i + 1; j < courses.length; j++) {
+      const a = courses[i];
+      const b = courses[j];
+      if (a.day !== b.day) continue;
+      if (rangesOverlap(a.startTime, a.endTime, b.startTime, b.endTime)) {
+        result.add(a.id);
+        result.add(b.id);
+      }
+    }
+  }
+  for (const course of courses) {
+    if (
+      breaks.some((b) =>
+        rangesOverlap(course.startTime, course.endTime, b.startTime, b.endTime)
+      )
+    ) {
+      result.add(course.id);
+    }
+  }
+  return result;
+}
+
+/** Rows/columns that fully cover every course (same rule as the on-screen grid). */
+function effectiveRange(
+  courses: CourseEntry[],
+  breaks: ScheduleBreak[],
+  startHour: number,
+  endHour: number,
+  slotMinutes: number
+): { start: number; endMinutes: number; totalSlots: number } {
+  let earliest = Infinity;
+  let latest = -Infinity;
+  for (const c of courses) {
+    earliest = Math.min(earliest, timeToMinutes(c.startTime));
+    latest = Math.max(latest, timeToMinutes(c.endTime));
+  }
+  for (const b of breaks) {
+    earliest = Math.min(earliest, timeToMinutes(b.startTime));
+    latest = Math.max(latest, timeToMinutes(b.endTime));
+  }
+  const courseStartHour = courses.length || breaks.length ? Math.floor(earliest / 60) : startHour;
+  const courseEndRounded =
+    courses.length || breaks.length ? Math.ceil(latest / slotMinutes) * slotMinutes : -Infinity;
+  const start = courseStartHour < startHour ? 0 : startHour;
+  const endMinutes = Math.max(endHour * 60, courseEndRounded);
+  return { start, endMinutes, totalSlots: (endMinutes - start * 60) / slotMinutes };
+}

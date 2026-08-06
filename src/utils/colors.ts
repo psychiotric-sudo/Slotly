@@ -16,10 +16,17 @@ export const PALETTE: PaletteColor[] = [
   { hex: "#E5E7EB", name: "Neutral Gray", text: "#111827" },
 ];
 
-/** Stable identity of a course: prefer code, fall back to title. */
-export function courseGroupKey(course: { code: string; title: string }): string {
-  const raw = course.code?.trim() || course.title?.trim();
-  return (raw || "untitled").toLowerCase();
+/** Stable identity of a course: prefer code, fall back to title. Includes section so alternative schedules of the same subject stay separate. */
+export function courseGroupKey(course: { code: string; title: string; section?: string }): string {
+  const raw = course.code?.trim() || course.title?.trim() || "untitled";
+  const section = (course.section ?? "").trim().toLowerCase();
+  return section ? `${raw.toLowerCase()}#${section}` : raw.toLowerCase();
+}
+
+/** Identity of the subject itself, ignoring section — used to group alternative schedules for "best fit". */
+export function subjectKey(course: { code: string; title: string }): string {
+  const raw = course.code?.trim() || course.title?.trim() || "untitled";
+  return raw.toLowerCase();
 }
 
 /** Deterministic auto-color: every block of the same course gets the same palette color. */

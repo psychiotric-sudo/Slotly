@@ -176,13 +176,16 @@ function nextDateForWeekday(day: WeekDay): string {
 }
 
 function courseKey(course: CourseEntry): string {
-  return (course.code || course.title).trim().toLowerCase();
+  const base = (course.code || course.title).trim().toLowerCase();
+  const section = (course.section ?? "").trim().toLowerCase();
+  return section ? `${base}#${section}` : base;
 }
 
 export interface CourseGroup {
   key: string;
   code: string;
   title: string;
+  section: string;
   name: string;
   days: WeekDay[];
   startTime: string;
@@ -201,6 +204,7 @@ export function groupCourses(courses: CourseEntry[]): CourseGroup[] {
         key,
         code: course.code,
         title: course.title,
+        section: course.section ?? "",
         name: course.code || course.title,
         days: [],
         startTime: course.startTime,
@@ -219,8 +223,11 @@ export function groupCourses(courses: CourseEntry[]): CourseGroup[] {
 function gcalEventName(group: CourseGroup): string {
   const code = (group.code ?? "").trim();
   const title = (group.title ?? "").trim();
-  if (code && title && code !== title) return `${code} - ${title}`;
-  return title || code;
+  const section = (group.section ?? "").trim();
+  const name = title || code;
+  const labelled = section ? `${name} (Sec ${section})` : name;
+  if (code && title && code !== title) return `${code} - ${labelled}`;
+  return labelled;
 }
 
 function buildRrule(group: CourseGroup): string {

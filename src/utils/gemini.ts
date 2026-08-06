@@ -1,19 +1,28 @@
-import type { CourseEntry, WeekDay } from "../types";
+import type { CourseEntry, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
+import { detectSlotMinutes } from "./time";
 
 export const GEMINI_PROMPT = `You are converting a class schedule into JSON for the Slotly timetable app.
 
 Look at the schedule in the image/text and extract every class meeting. Output your answer as a markdown code block tagged \`json\` containing ONLY valid JSON — no extra text, no explanations — in this exact shape:
 
 {
+  "slotMinutes": 30,
   "courses": [
     {
       "title": "Full course title",
-      "code": "Course code if shown, otherwise the course title",
+      "code": "Course code if SHOWN clearly, otherwise empty string. Do NOT invent codes.",
       "instructor": "Instructor name if shown, otherwise empty string",
       "room": "Room or building if shown, otherwise empty string",
       "day": "MON|TUE|WED|THU|FRI|SAT|SUN",
       "startTime": "HH:MM",
       "endTime": "HH:MM"
+    }
+  ],
+  "breaks": [
+    {
+      "label": "RECESS",
+      "startTime": "09:20",
+      "endTime": "09:40"
     }
   ]
 }
@@ -24,6 +33,9 @@ Rules:
 - "day" must be exactly one of: MON, TUE, WED, THU, FRI, SAT, SUN.
 - If the schedule is a photo, read the times and days exactly as printed on it.
 - Include every class. Do not invent or skip any.
+- Only set "code" when a code is actually printed on the schedule. If there is no course code, leave it as an empty string — never copy the title into the code.
+- Detect the grid granularity of the schedule from how the printed time periods are spaced and set "slotMinutes" to the smallest consistent block of minutes used — typically 15, 20, 30, or 60 (use any value the schedule actually follows, e.g. 45 or 90 if the periods are that long). When unsure, use 30.
+- Look for merged/full-width rows that span the whole week (like RECESS, LUNCH BREAK, or any named free-time period). Output each one in the "breaks" array with its label and the printed times. Also, whenever two classes are separated by a long empty gap (roughly an hour or more) with no class in it, add a single "breaks" entry for that whole gap labeled "LUNCH BREAK" (or its printed label) instead of listing every small empty time. If there are none, output "breaks": [].
 - Put the JSON inside a markdown code block like \`\`\`json ... \`\`\`. The JSON must be valid — it will be parsed programmatically.`;
 
 const DAY_ALIASES: Record<string, WeekDay> = {
@@ -108,8 +120,20 @@ interface RawCourse {
   endTime?: string;
 }
 
+interface RawBreak {
+  label?: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface GeminiParseResult {
+  slotMinutes: SlotMinutes;
+  courses: CourseEntry[];
+  breaks: ScheduleBreak[];
+}
+
 /** Parses Gemini output (object with `courses` array, or a bare array). */
-export function parseGeminiJson(text: string): CourseEntry[] {
+export function parseGeminiJson(text: string): GeminiParseResult {
   const cleaned = text
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -128,6 +152,17 @@ export function parseGeminiJson(text: string): CourseEntry[] {
     : Array.isArray((parsed as { courses?: unknown }).courses)
       ? ((parsed as { courses: RawCourse[] }).courses)
       : [];
+  const rawBreaks: RawBreak[] =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? Array.isArray((parsed as { breaks?: unknown }).breaks)
+        ? ((parsed as { breaks: RawBreak[] }).breaks)
+        : []
+      : [];
+
+  const slotMinutes =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { slotMinutes?: unknown }).slotMinutes
+      : undefined;
 
   if (rawCourses.length === 0) {
     throw new Error("No courses found in that JSON. Make sure it contains a \"courses\" array.");
@@ -157,7 +192,7 @@ export function parseGeminiJson(text: string): CourseEntry[] {
       entries.push({
         id: crypto.randomUUID(),
         title,
-        code: (raw.code ?? "").trim() || title,
+        code: (raw.code ?? "").trim(),
         instructor: (raw.instructor ?? "").trim(),
         room: (raw.room ?? "").trim(),
         day,
@@ -175,5 +210,20 @@ export function parseGeminiJson(text: string): CourseEntry[] {
     );
   }
 
-  return entries;
+  const breaks: ScheduleBreak[] = [];
+  let m = 0;
+  for (const raw of rawBreaks) {
+    if (!raw || typeof raw !== "object") continue;
+    const label = (raw.label ?? "").trim();
+    const start = normalizeTime(raw.startTime ?? "");
+    const end = normalizeTime(raw.endTime ?? "");
+    if (!label || !start || !end || end <= start) continue;
+    breaks.push({ id: crypto.randomUUID(), label, startTime: start, endTime: end });
+    m += 1;
+  }
+
+  const parsedSlot: SlotMinutes | null =
+    typeof slotMinutes === "number" && slotMinutes > 0 ? slotMinutes : null;
+
+  return { courses: entries, breaks, slotMinutes: parsedSlot ?? detectSlotMinutes(entries) };
 }

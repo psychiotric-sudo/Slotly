@@ -32,12 +32,25 @@ export const DAY_SHORT: Record<WeekDay, string> = {
 
 export type Theme = "light" | "dark";
 
+/** Grid granularity in minutes (e.g. 15, 20, 30, 60, 90…). */
+export type SlotMinutes = number;
+
+/** A full-width row (spans every day column) like RECESS or LUNCH BREAK. */
+export interface ScheduleBreak {
+  id: string;
+  label: string;
+  startTime: string; // "HH:mm" 24hr
+  endTime: string; // "HH:mm" 24hr
+}
+
 export interface CourseEntry {
   id: string;
   title: string;
   code: string;
   instructor: string;
   room: string;
+  /** Optional section/lab group (e.g. "A", "B"). Distinguishes alternative schedules of the same subject. */
+  section?: string;
   day: WeekDay;
   startTime: string; // "HH:mm" 24hr
   endTime: string; // "HH:mm" 24hr
@@ -51,18 +64,24 @@ export interface CourseEntry {
 export interface ScheduleSettings {
   startHour: number;
   endHour: number;
-  slotMinutes: 15 | 30;
+  slotMinutes: SlotMinutes;
   activeDays: WeekDay[];
   theme: Theme;
   fontSize: number;
   sundayFirst: boolean;
   showConflictBadges: boolean;
+  showBreaks: boolean;
+  /** Merge gaps/long blocks into single rows on the on-screen grid. */
+  simplifyView: boolean;
+  /** Merge gaps/long blocks into single rows when exporting. */
+  simplifyExport: boolean;
 }
 
 export interface ScheduleState {
   schemaVersion: number;
   savedAt: number;
   courses: CourseEntry[];
+  breaks: ScheduleBreak[];
   settings: ScheduleSettings;
 }
 

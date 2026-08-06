@@ -10,10 +10,11 @@ import DeleteModal from "./components/DeleteModal";
 import SettingsDrawer from "./components/SettingsDrawer";
 import GeminiModal from "./components/GeminiModal";
 import GCalExportModal from "./components/GCalExportModal";
+import ConflictsModal from "./components/ConflictsModal";
 import Toasts from "./components/Toasts";
 import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
-import { layoutCourses } from "./utils/conflicts";
+import { findConflictPairs, layoutCourses } from "./utils/conflicts";
 import { buildIcs, GOOGLE_CALENDAR_EXPORT_URL } from "./utils/gcal";
 import { WEEK_DAYS } from "./types";
 
@@ -21,6 +22,7 @@ export default function App() {
   const api = useSchedule();
   const {
     courses,
+    breaks,
     settings,
     toasts,
     canUndo,
@@ -29,6 +31,7 @@ export default function App() {
     clearAll,
     loadDemo,
     mergeCourses,
+    importSchedule,
     saveCourseGroup,
     undo,
     redo,
@@ -44,9 +47,12 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
   const [showGCalExport, setShowGCalExport] = useState(false);
+  const [showConflicts, setShowConflicts] = useState(false);
+  const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<WeekDay>("MON");
   const [exporting, setExporting] = useState<"jpg" | "pdf" | null>(null);
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [gridZoom, setGridZoom] = useState(1);
   const [fabMenu, setFabMenu] = useState<"import" | "export" | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
@@ -118,9 +124,22 @@ export default function App() {
   }, [clampZoom]);
 
   const conflictsCount = useMemo(
-    () => layoutCourses(courses).filter((c) => c.conflictCount > 0).length,
-    [courses]
+    () =>
+      layoutCourses(courses, breaks).filter((c) => c.conflictCount > 0 || c.overlapsBreak)
+        .length,
+    [courses, breaks]
   );
+
+  const conflictPairs = useMemo(
+    () => findConflictPairs(courses, breaks),
+    [courses, breaks]
+  );
+
+  const highlightCourses = useCallback((ids: string[]) => {
+    const timer = window.setTimeout(() => setHighlighted(new Set()), 2600);
+    setHighlighted(new Set(ids));
+    window.setTimeout(() => window.clearTimeout(timer), 2700);
+  }, []);
 
   /** Shown days: weekdays Mon–Fri by default, plus any day that has a class. */
   const visibleDays = useMemo<WeekDay[]>(() => {
@@ -159,21 +178,26 @@ export default function App() {
   const handleExport = async (kind: "jpg" | "pdf") => {
     if (courses.length === 0) return;
     setExporting(kind);
+    setExportProgress(0);
     try {
       const data = {
         courses,
+        breaks,
         activeDays: exportDays,
         startHour: settings.startHour,
         endHour: settings.endHour,
         slotMinutes: settings.slotMinutes,
+        showBreaks: settings.showBreaks,
+        simplifyExport: settings.simplifyExport,
       };
       const { exportToJPG, exportToPDF } = await import("./lib/export");
-      if (kind === "jpg") await exportToJPG(data);
-      else await exportToPDF(data);
+      if (kind === "jpg") await exportToJPG(data, undefined, setExportProgress);
+      else await exportToPDF(data, undefined, setExportProgress);
     } catch (err) {
       console.error("Export failed:", err);
     } finally {
       setExporting(null);
+      setExportProgress(null);
     }
   };
 
@@ -244,6 +268,7 @@ export default function App() {
       <main className="app-body">
         <LeftPanel
           courses={courses}
+          breaks={breaks}
           open={sidebarOpen}
           onCloseSidebar={() => setSidebarOpen(false)}
           onAdd={openAdd}
@@ -310,12 +335,18 @@ export default function App() {
                 <Icon name="pdf" size={16} />
                 {exporting === "pdf" ? "Rendering…" : "Save as PDF"}
               </button>
-              <span className="export-hint">
+              <button
+                type="button"
+                className={`export-hint${conflictsCount > 0 ? " has-conflicts" : ""}`}
+                onClick={() => setShowConflicts(true)}
+                disabled={conflictsCount === 0}
+                title={conflictsCount > 0 ? "Review clashes" : undefined}
+              >
                 {courses.length} class{courses.length === 1 ? "" : "es"}
                 {conflictsCount > 0
                   ? ` · ${conflictsCount} overlap${conflictsCount === 1 ? "" : "s"}`
                   : ""}
-              </span>
+              </button>
             </div>
 
           <div
@@ -325,6 +356,7 @@ export default function App() {
           >
             <ScheduleCanvas
               courses={courses}
+              breaks={breaks}
               startHour={settings.startHour}
               endHour={settings.endHour}
               slotMinutes={settings.slotMinutes}
@@ -332,7 +364,10 @@ export default function App() {
               onEdit={openEdit}
               zoom={gridZoom}
               showConflictBadges={settings.showConflictBadges}
+              showBreaks={settings.showBreaks}
+              simplifyView={settings.simplifyView}
               fontSize={settings.fontSize}
+              highlightedCourseIds={highlighted}
             />
           </div>
         </section>
@@ -548,7 +583,11 @@ export default function App() {
       {showSettings && (
         <SettingsDrawer
           settings={settings}
+          breaks={breaks}
           onUpdate={updateSettings}
+          onAddBreak={api.addBreak}
+          onUpdateBreak={api.updateBreak}
+          onDeleteBreak={api.deleteBreak}
           onClose={() => setShowSettings(false)}
           onResetDemo={() => {
             loadDemo();
@@ -559,7 +598,7 @@ export default function App() {
 
       {showGemini && (
         <GeminiModal
-          onImport={mergeCourses}
+          onImport={importSchedule}
           onClose={() => setShowGemini(false)}
         />
       )}
@@ -569,6 +608,32 @@ export default function App() {
           onDownload={exportIcs}
           onClose={() => setShowGCalExport(false)}
         />
+      )}
+
+      {showConflicts && (
+        <ConflictsModal
+          pairs={conflictPairs}
+          onDrop={(course) => deleteCourseGroup(courseGroupKey(course))}
+          onHighlight={highlightCourses}
+          onClose={() => setShowConflicts(false)}
+        />
+      )}
+
+      {exporting && (
+        <div className="export-overlay" role="status" aria-live="polite">
+          <div className="export-progress">
+            <span className="export-progress__title">
+              Rendering {exporting.toUpperCase()}…
+            </span>
+            <div className="export-progress__track">
+              <div
+                className="export-progress__bar"
+                style={{ width: `${exportProgress ?? 0}%` }}
+              />
+            </div>
+            <span className="export-progress__pct">{exportProgress ?? 0}%</span>
+          </div>
+        </div>
       )}
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />

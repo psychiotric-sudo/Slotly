@@ -1,4 +1,4 @@
-import type { CourseEntry } from "../types";
+import type { CourseEntry, ScheduleBreak } from "../types";
 import CourseList from "./CourseList";
 import Icon from "./icons";
 import { getAccessibleTextColor } from "../utils/contrast";
@@ -6,6 +6,7 @@ import { GOOGLE_CALENDAR_EXPORT_URL } from "../utils/gcal";
 
 interface LeftPanelProps {
   courses: CourseEntry[];
+  breaks: ScheduleBreak[];
   open: boolean;
   onCloseSidebar: () => void;
   onAdd: () => void;
@@ -20,6 +21,7 @@ interface LeftPanelProps {
 
 export default function LeftPanel({
   courses,
+  breaks,
   open,
   onCloseSidebar,
   onAdd,
@@ -78,12 +80,27 @@ export default function LeftPanel({
           <Icon name="plus" size={16} />
           Add Class
         </button>
+      </div>
+
+      <div className="list-header">
+        <h2>Course List</h2>
+        <span className="count-badge">{courses.length}</span>
+      </div>
+
+      <CourseList courses={courses} breaks={breaks} onEdit={onEdit} onDelete={onDelete} />
+
+      <div className="panel-actions">
         <button type="button" className="btn-ghost" onClick={onLoadDemo}>
           <Icon name="sparkles" size={15} />
-          Load Demo Data
+          Load Demo
         </button>
         {courses.length > 0 && (
-          <button type="button" className="btn-destructive clear-all" onClick={onClearAll}>
+          <button
+            type="button"
+            className="btn-destructive clear-all"
+            onClick={onClearAll}
+            title="Remove all classes"
+          >
             <Icon name="trash" size={15} />
             Clear All
           </button>
@@ -91,8 +108,12 @@ export default function LeftPanel({
       </div>
 
       <div className="integrations">
-        <h2>Import / Integrate</h2>
-        <button type="button" className="btn-ghost integration-btn" onClick={onOpenGemini}>
+        <h2>Import &amp; Sync</h2>
+        <button
+          type="button"
+          className="btn-ghost integration-btn integration-primary"
+          onClick={onOpenGemini}
+        >
           <Icon name="sparkles" size={15} />
           Import from Gemini AI
         </button>
@@ -103,7 +124,7 @@ export default function LeftPanel({
           rel="noreferrer"
         >
           <Icon name="download" size={15} />
-          Get my study load from Google Calendar
+          Get courses from Google Calendar
           <Icon name="external" size={13} className="btn-trailing" />
         </a>
         <button
@@ -119,22 +140,11 @@ export default function LeftPanel({
           <button type="button" className="btn-link" onClick={exportBackup}>
             Download backup
           </button>
-          <button
-            type="button"
-            className="btn-link"
-            onClick={onRequestBackup}
-          >
+          <button type="button" className="btn-link" onClick={onRequestBackup}>
             Restore backup
           </button>
         </div>
       </div>
-
-      <div className="list-header">
-        <h2>Course List</h2>
-        <span className="count-badge">{courses.length}</span>
-      </div>
-
-      <CourseList courses={courses} onEdit={onEdit} onDelete={onDelete} />
 
       <p className="color-legend">
         <span

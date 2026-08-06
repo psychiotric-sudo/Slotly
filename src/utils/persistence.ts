@@ -1,17 +1,20 @@
-import type { CourseEntry, ScheduleSettings, ScheduleState, WeekDay } from "../types";
+import type { CourseEntry, ScheduleBreak, ScheduleSettings, ScheduleState, WeekDay } from "../types";
 
 export const STORAGE_KEY = "schedule_v1";
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 export const DEFAULT_SETTINGS: ScheduleSettings = {
   startHour: 7,
   endHour: 17,
   slotMinutes: 30,
   activeDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
-  theme: "dark",
+  theme: "light",
   fontSize: 12,
   sundayFirst: false,
   showConflictBadges: true,
+  showBreaks: true,
+  simplifyView: false,
+  simplifyExport: false,
 };
 
 const WEEK_DAY_SET: ReadonlySet<string> = new Set([
@@ -23,6 +26,19 @@ const WEEK_DAY_SET: ReadonlySet<string> = new Set([
   "SAT",
   "SUN",
 ]);
+
+function isBreakEntry(value: unknown): value is ScheduleBreak {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === "string" &&
+    typeof v.label === "string" &&
+    typeof v.startTime === "string" &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(v.startTime) &&
+    typeof v.endTime === "string" &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(v.endTime)
+  );
+}
 
 function isCourseEntry(value: unknown): value is CourseEntry {
   if (typeof value !== "object" || value === null) return false;
@@ -46,11 +62,18 @@ function isCourseEntry(value: unknown): value is CourseEntry {
 export function validateSchema(parsed: unknown): parsed is ScheduleState {
   if (typeof parsed !== "object" || parsed === null) return false;
   const p = parsed as Record<string, unknown>;
-  if (p.schemaVersion !== SCHEMA_VERSION) return false;
+  if (typeof p.schemaVersion !== "number" || p.schemaVersion < 1 || p.schemaVersion > SCHEMA_VERSION) {
+    return false;
+  }
   if (!Array.isArray(p.courses)) return false;
   if (!p.courses.every(isCourseEntry)) return false;
   if (typeof p.settings !== "object" || p.settings === null) return false;
   return true;
+}
+
+function normalizeBreaks(value: unknown): ScheduleBreak[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isBreakEntry);
 }
 
 export function normalizeSettings(
@@ -60,7 +83,7 @@ export function normalizeSettings(
   if (!settings) return base;
   if (typeof settings.startHour === "number") base.startHour = settings.startHour;
   if (typeof settings.endHour === "number") base.endHour = settings.endHour;
-  if (settings.slotMinutes === 15 || settings.slotMinutes === 30) {
+  if (typeof settings.slotMinutes === "number" && settings.slotMinutes > 0) {
     base.slotMinutes = settings.slotMinutes;
   }
   if (Array.isArray(settings.activeDays)) {
@@ -80,6 +103,15 @@ export function normalizeSettings(
   if (typeof settings.showConflictBadges === "boolean") {
     base.showConflictBadges = settings.showConflictBadges;
   }
+  if (typeof settings.showBreaks === "boolean") {
+    base.showBreaks = settings.showBreaks;
+  }
+  if (typeof settings.simplifyView === "boolean") {
+    base.simplifyView = settings.simplifyView;
+  }
+  if (typeof settings.simplifyExport === "boolean") {
+    base.simplifyExport = settings.simplifyExport;
+  }
   return base;
 }
 
@@ -90,7 +122,9 @@ export function saveState(state: Omit<ScheduleState, "schemaVersion" | "savedAt"
       JSON.stringify({
         schemaVersion: SCHEMA_VERSION,
         savedAt: Date.now(),
-        ...state,
+        courses: state.courses,
+        breaks: state.breaks,
+        settings: state.settings,
       })
     );
   } catch (err) {
@@ -108,7 +142,12 @@ export function loadState(): ScheduleState | null {
     const courses = parsed.courses.map((c: CourseEntry) =>
       c.colorOverride === undefined ? { ...c, colorOverride: c.colorHex } : c
     );
-    return { ...parsed, courses };
+    const breaks = normalizeBreaks(parsed.breaks);
+    const settings =
+      typeof parsed.schemaVersion === "number" && parsed.schemaVersion < 2
+        ? { ...parsed.settings, simplifyView: false, simplifyExport: false }
+        : parsed.settings;
+    return { ...parsed, courses, breaks, settings } as ScheduleState;
   } catch {
     return null;
   }

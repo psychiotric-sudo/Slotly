@@ -1,4 +1,10 @@
-import type { CourseEntry } from "../types";
+import type { CourseEntry, ScheduleBreak } from "../types";
+
+export function buildDemoBreaks(): ScheduleBreak[] {
+  return [
+    { id: crypto.randomUUID(), label: "LUNCH BREAK", startTime: "12:00", endTime: "13:00" },
+  ];
+}
 
 export function buildDemoCourses(): CourseEntry[] {
   const now = Date.now();
@@ -45,8 +51,8 @@ export function buildDemoCourses(): CourseEntry[] {
       "Dr. L. Nguyen",
       "Bldg 2 - Room 118",
       "MON",
-      "09:30",
-      "11:00",
+      "09:00",
+      "10:30",
       "#86EFAC"
     ),
     make(
@@ -55,8 +61,8 @@ export function buildDemoCourses(): CourseEntry[] {
       "Dr. L. Nguyen",
       "Bldg 2 - Room 120",
       "MON",
-      "11:30",
-      "13:00",
+      "10:30",
+      "12:00",
       "#93C5FD"
     ),
     make(
@@ -115,8 +121,8 @@ export function buildDemoCourses(): CourseEntry[] {
       "Ms. R. Delgado",
       "Bldg 1 - Room 104",
       "THU",
+      "09:30",
       "11:00",
-      "12:30",
       "#FDE68A"
     ),
     make(

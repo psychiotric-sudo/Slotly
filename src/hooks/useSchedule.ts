@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CourseEntry, ScheduleSettings, WeekDay } from "../types";
+import type { CourseEntry, ScheduleBreak, ScheduleSettings, SlotMinutes, WeekDay } from "../types";
 import {
   DEFAULT_SETTINGS,
   loadState,
@@ -7,8 +7,9 @@ import {
   saveState,
   STORAGE_KEY,
 } from "../utils/persistence";
-import { buildDemoCourses } from "../data/demo";
+import { buildDemoBreaks, buildDemoCourses } from "../data/demo";
 import { assignUniqueColors, courseGroupKey } from "../utils/colors";
+import { detectSlotMinutes } from "../utils/time";
 
 export type ToastKind = "success" | "danger" | "info";
 
@@ -23,9 +24,14 @@ export interface Toast {
 const MAX_HISTORY = 20;
 
 export function useSchedule() {
-  const [courses, setCourses] = useState<CourseEntry[]>(() => {
+const [courses, setCourses] = useState<CourseEntry[]>(() => {
     const loaded = loadState();
     return loaded ? loaded.courses : [];
+  });
+
+  const [breaks, setBreaks] = useState<ScheduleBreak[]>(() => {
+    const loaded = loadState();
+    return loaded ? loaded.breaks : [];
   });
 
   const [settings, setSettings] = useState<ScheduleSettings>(() => {
@@ -41,19 +47,21 @@ export function useSchedule() {
 
   const coursesRef = useRef(courses);
   coursesRef.current = courses;
+  const breaksRef = useRef(breaks);
+  breaksRef.current = breaks;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const skipSaveRef = useRef(false);
 
-  // Save synchronously (no delayed timer) so a suspended tab can never fire a
+// Save synchronously (no delayed timer) so a suspended tab can never fire a
   // stale autosave that resurrects older data over a newer write.
   useEffect(() => {
     if (skipSaveRef.current) {
       skipSaveRef.current = false;
       return;
     }
-    saveState({ courses, settings });
-  }, [courses, settings]);
+    saveState({ courses, breaks, settings });
+  }, [courses, breaks, settings]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
@@ -69,6 +77,7 @@ export function useSchedule() {
       futureRef.current = [];
       skipSaveRef.current = true;
       setCourses(loaded.courses);
+      setBreaks(loaded.breaks);
       setSettings(normalizeSettings(loaded.settings));
     };
     window.addEventListener("storage", onStorage);
@@ -136,7 +145,11 @@ export function useSchedule() {
       const matching = coursesRef.current.filter((c) => courseGroupKey(c) === key);
       if (matching.length === 0) return;
       const target = matching[0];
-      commit(coursesRef.current.filter((c) => courseGroupKey(c) !== key));
+      const next = coursesRef.current.filter((c) => courseGroupKey(c) !== key);
+      const clearedBreaks = next.length === 0 && breaksRef.current.length > 0;
+      const prevBreaks = breaksRef.current;
+      commit(next);
+      if (clearedBreaks) setBreaks([]);
       pushToast({
         message: `Deleted "${target.title || target.code}"`,
         kind: "danger",
@@ -144,6 +157,7 @@ export function useSchedule() {
         onAction: () => {
           skipHistoryRef.current = true;
           commit([...coursesRef.current, ...matching]);
+          if (clearedBreaks) setBreaks(prevBreaks);
         },
       });
     },
@@ -152,15 +166,25 @@ export function useSchedule() {
 
   const clearAll = useCallback(() => {
     const count = coursesRef.current.length;
-    if (count === 0) return;
+    const hadBreaks = breaksRef.current.length;
+    if (count === 0 && hadBreaks === 0) return;
+    const prevBreaks = breaksRef.current;
     commit([]);
+    if (hadBreaks > 0) setBreaks([]);
+    if (settingsRef.current.slotMinutes !== 30) {
+      setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
+    }
     pushToast({
-      message: `Cleared ${count} class${count === 1 ? "" : "es"}`,
+      message:
+        count > 0
+          ? `Cleared ${count} class${count === 1 ? "" : "es"}${hadBreaks > 0 ? ` and ${hadBreaks} break${hadBreaks === 1 ? "" : "s"}` : ""}`
+          : `Cleared ${hadBreaks} break${hadBreaks === 1 ? "" : "s"}`,
       kind: "danger",
       actionLabel: "Undo",
       onAction: () => {
         skipHistoryRef.current = true;
         commit(historyRef.current[historyRef.current.length - 1] ?? []);
+        if (hadBreaks > 0) setBreaks(prevBreaks);
       },
     });
   }, [commit, pushToast]);
@@ -173,6 +197,8 @@ export function useSchedule() {
     }
     futureRef.current = [];
     setCourses(buildDemoCourses());
+    setBreaks(buildDemoBreaks());
+    setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
     pushToast({ message: "Loaded demo schedule", kind: "success" });
   }, [pushToast]);
 
@@ -208,13 +234,62 @@ export function useSchedule() {
     [pushToast]
   );
 
+  const addBreak = useCallback((br: ScheduleBreak) => {
+    setBreaks((prev) => [...prev, br]);
+  }, []);
+
+  const updateBreak = useCallback((id: string, patch: Partial<ScheduleBreak>) => {
+    setBreaks((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, ...patch } : b))
+    );
+  }, []);
+
+  const deleteBreak = useCallback((id: string) => {
+    setBreaks((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  /**
+   * Replaces the whole schedule (Gemini import). Clears every existing course
+   * and break, runs unique colors on the incoming load, and adopts the grid
+   * granularity Gemini detected (falling back to a local auto-detect).
+   */
+  const importSchedule = useCallback(
+    (
+      incoming: CourseEntry[],
+      newBreaks: ScheduleBreak[],
+      label: string,
+      slotMinutes?: SlotMinutes
+    ) => {
+      skipHistoryRef.current = true;
+      historyRef.current.push(coursesRef.current);
+      if (historyRef.current.length > MAX_HISTORY) {
+        historyRef.current.shift();
+      }
+      futureRef.current = [];
+      const colored = assignUniqueColors(incoming, []);
+      const detected = detectSlotMinutes(colored, slotMinutes ?? settingsRef.current.slotMinutes);
+      const slot: SlotMinutes =
+        typeof slotMinutes === "number" && slotMinutes > 0 ? slotMinutes : detected;
+      setCourses(colored);
+      setBreaks(newBreaks);
+      if (slot !== settingsRef.current.slotMinutes) {
+        setSettings((prev) => ({ ...prev, slotMinutes: slot }));
+      }
+      pushToast({
+        message: `Imported ${colored.length} class${colored.length === 1 ? "" : "es"} and ${newBreaks.length} break${newBreaks.length === 1 ? "" : "s"} from ${label}`,
+        kind: "success",
+      });
+    },
+    [pushToast]
+  );
+
   /** Applies a manual color (or clears it) across every block that shares a course identity. */
   const applyCourseColor = useCallback(
     (key: string, override: string | null) => {
       skipHistoryRef.current = true;
       commit(
         coursesRef.current.map((c) =>
-          (c.code || c.title).trim().toLowerCase() === key
+          courseGroupKey(c) === key
             ? { ...c, colorOverride: override ?? undefined, updatedAt: Date.now() }
             : c
         )
@@ -306,6 +381,7 @@ export function useSchedule() {
 
   return {
     courses,
+    breaks,
     settings,
     toasts,
     canUndo,
@@ -318,6 +394,10 @@ export function useSchedule() {
     loadDemo,
     importCourses,
     mergeCourses,
+    importSchedule,
+    addBreak,
+    updateBreak,
+    deleteBreak,
     applyCourseColor,
     saveCourseGroup,
     undo,

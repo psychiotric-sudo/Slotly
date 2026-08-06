@@ -1,20 +1,42 @@
+import { useState } from "react";
 import Modal from "./Modal";
 import Icon from "./icons";
-import type { ScheduleSettings } from "../types";
+import type { ScheduleBreak, ScheduleSettings } from "../types";
+import { validTime, timeToMinutes } from "../utils/time";
 
 interface SettingsDrawerProps {
   settings: ScheduleSettings;
+  breaks: ScheduleBreak[];
   onUpdate: (patch: Partial<ScheduleSettings>) => void;
+  onAddBreak: (br: ScheduleBreak) => void;
+  onUpdateBreak: (id: string, patch: Partial<ScheduleBreak>) => void;
+  onDeleteBreak: (id: string) => void;
   onClose: () => void;
   onResetDemo: () => void;
 }
 
 export default function SettingsDrawer({
   settings,
+  breaks,
   onUpdate,
+  onAddBreak,
+  onUpdateBreak,
+  onDeleteBreak,
   onClose,
   onResetDemo,
 }: SettingsDrawerProps) {
+  const [draft, setDraft] = useState({ label: "", startTime: "", endTime: "" });
+
+  const addDraft = () => {
+    const label = draft.label.trim();
+    const start = draft.startTime.trim();
+    const end = draft.endTime.trim();
+    if (!label || !validTime(start) || !validTime(end)) return;
+    if (timeToMinutes(end) <= timeToMinutes(start)) return;
+    onAddBreak({ id: crypto.randomUUID(), label, startTime: start, endTime: end });
+    setDraft({ label: "", startTime: "", endTime: "" });
+  };
+
   return (
     <Modal role="dialog" labelledBy="settings-title" onClose={onClose} className="settings-modal">
       <header className="modal-header">
@@ -66,26 +88,6 @@ export default function SettingsDrawer({
           {settings.startHour >= settings.endHour && (
             <p className="form-error">End hour must be after start hour.</p>
           )}
-        </div>
-
-        <div className="settings-group">
-          <h3>Grid granularity</h3>
-          <div className="segmented">
-            <button
-              type="button"
-              className={settings.slotMinutes === 30 ? "active" : ""}
-              onClick={() => onUpdate({ slotMinutes: 30 })}
-            >
-              30 min
-            </button>
-            <button
-              type="button"
-              className={settings.slotMinutes === 15 ? "active" : ""}
-              onClick={() => onUpdate({ slotMinutes: 15 })}
-            >
-              15 min
-            </button>
-          </div>
         </div>
 
         <div className="settings-group">
@@ -144,6 +146,103 @@ export default function SettingsDrawer({
               onChange={(e) => onUpdate({ showConflictBadges: e.target.checked })}
             />
           </label>
+          <label className="toggle-row">
+            <span>Merged rows (recess / lunch break)</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.showBreaks}
+              onChange={(e) => onUpdate({ showBreaks: e.target.checked })}
+            />
+          </label>
+        </div>
+
+        <div className="settings-group">
+          <h3>Simplified grid</h3>
+          <label className="toggle-row">
+            <span>Simplify on screen</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.simplifyView}
+              onChange={(e) => onUpdate({ simplifyView: e.target.checked })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>Simplify when exporting</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.simplifyExport}
+              onChange={(e) => onUpdate({ simplifyExport: e.target.checked })}
+            />
+          </label>
+        </div>
+
+        <div className="settings-group">
+          <h3>Merged rows (breaks)</h3>
+          {breaks.length === 0 && (
+            <p className="settings-hint">No breaks yet. Add one below (e.g. RECESS or LUNCH BREAK).</p>
+          )}
+          <ul className="break-list">
+            {breaks.map((br) => (
+              <li key={br.id} className="break-item">
+                <input
+                  className="input break-field"
+                  value={br.label}
+                  onChange={(e) => onUpdateBreak(br.id, { label: e.target.value })}
+                  aria-label="Break label"
+                />
+                <input
+                  className="input break-field break-field--time"
+                  value={br.startTime}
+                  onChange={(e) => onUpdateBreak(br.id, { startTime: e.target.value })}
+                  aria-label="Break start time"
+                />
+                <span className="break-dash">–</span>
+                <input
+                  className="input break-field break-field--time"
+                  value={br.endTime}
+                  onChange={(e) => onUpdateBreak(br.id, { endTime: e.target.value })}
+                  aria-label="Break end time"
+                />
+                <button
+                  type="button"
+                  className="icon-btn break-delete"
+                  onClick={() => onDeleteBreak(br.id)}
+                  aria-label={`Delete ${br.label || "break"}`}
+                >
+                  <Icon name="trash" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="break-add">
+            <input
+              className="input break-field"
+              value={draft.label}
+              onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+              placeholder="Label"
+              aria-label="New break label"
+            />
+            <input
+              className="input break-field break-field--time"
+              value={draft.startTime}
+              onChange={(e) => setDraft((d) => ({ ...d, startTime: e.target.value }))}
+              placeholder="HH:MM"
+              aria-label="New break start time"
+            />
+            <input
+              className="input break-field break-field--time"
+              value={draft.endTime}
+              onChange={(e) => setDraft((d) => ({ ...d, endTime: e.target.value }))}
+              placeholder="HH:MM"
+              aria-label="New break end time"
+            />
+            <button type="button" className="btn-secondary" onClick={addDraft}>
+              <Icon name="plus" size={14} /> Add
+            </button>
+          </div>
         </div>
 
         <div className="settings-group">

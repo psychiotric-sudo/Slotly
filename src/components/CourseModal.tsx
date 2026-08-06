@@ -20,6 +20,7 @@ interface CourseModalProps {
 interface FormState {
   title: string;
   code: string;
+  section: string;
   instructor: string;
   room: string;
   startTime: string;
@@ -50,6 +51,7 @@ export default function CourseModal({
   const [form, setForm] = useState<FormState>(() => ({
     title: course?.title ?? "",
     code: course?.code ?? "",
+    section: course?.section ?? "",
     instructor: course?.instructor ?? "",
     room: course?.room ?? "",
     startTime: course?.startTime ?? "08:00",
@@ -59,7 +61,7 @@ export default function CourseModal({
   const [days, setDays] = useState<WeekDay[]>(() => groupDays(allCourses, editingKey));
   const [customColor, setCustomColor] = useState(() => course?.colorOverride != null);
   const [customHex, setCustomHex] = useState(course?.colorOverride ?? "#93C5FD");
-  const [addAnyway, setAddAnyway] = useState(false);
+  const [addAnyway, setAddAnyway] = useState(() => course !== null);
   const [colorError, setColorError] = useState<string | null>(null);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -78,7 +80,9 @@ export default function CourseModal({
 
   const noDays = days.length === 0;
 
-  const autoColor = getAutoColor(courseGroupKey({ code: form.code, title: form.title }));
+  const autoColor = getAutoColor(
+    courseGroupKey({ code: form.code, title: form.title, section: form.section })
+  );
   const displayColor = form.colorOverride ?? autoColor;
 
   const conflicts = useMemo(() => {
@@ -148,6 +152,7 @@ export default function CourseModal({
       base: {
         title: form.title.trim(),
         code: form.code.trim(),
+        section: form.section.trim() || undefined,
         instructor: form.instructor.trim(),
         room: form.room.trim(),
         startTime: form.startTime,
@@ -200,6 +205,20 @@ export default function CourseModal({
               value={form.code}
               onChange={(e) => set("code", e.target.value)}
               placeholder="e.g. CS 202"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="cm-section">
+              Section <span className="field-hint">(optional — to try alternative schedules of the same subject, e.g. A or B)</span>
+            </label>
+            <input
+              id="cm-section"
+              className="input"
+              value={form.section}
+              onChange={(e) => set("section", e.target.value)}
+              placeholder="e.g. A"
               autoComplete="off"
             />
           </div>

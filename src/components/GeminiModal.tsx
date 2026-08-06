@@ -3,10 +3,15 @@ import Modal from "./Modal";
 import Icon from "./icons";
 import { GEMINI_PROMPT, parseGeminiJson } from "../utils/gemini";
 import { GEMINI_URL, openGeminiApp } from "../utils/gcal";
-import type { CourseEntry } from "../types";
+import type { CourseEntry, ScheduleBreak, SlotMinutes } from "../types";
 
 interface GeminiModalProps {
-  onImport: (courses: CourseEntry[], label: string) => void;
+  onImport: (
+    courses: CourseEntry[],
+    breaks: ScheduleBreak[],
+    label: string,
+    slotMinutes: SlotMinutes
+  ) => void;
   onClose: () => void;
 }
 
@@ -31,8 +36,8 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
     setError(null);
     setTimeout(() => {
       try {
-        const entries = parseGeminiJson(output);
-        onImport(entries, "Gemini");
+        const result = parseGeminiJson(output);
+        onImport(result.courses, result.breaks, "Gemini", result.slotMinutes);
         onClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not parse that JSON.");
@@ -105,6 +110,7 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
         <details className="schema-hint">
           <summary>What Gemini should output</summary>
           <pre>{`{
+  "slotMinutes": 30,
   "courses": [
     {
       "title": "Full course title",
@@ -115,6 +121,10 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
       "startTime": "HH:MM",
       "endTime": "HH:MM"
     }
+  ],
+  "breaks": [
+    { "label": "RECESS", "startTime": "09:20", "endTime": "09:40" },
+    { "label": "LUNCH BREAK", "startTime": "12:00", "endTime": "13:00" }
   ]
 }`}</pre>
         </details>
