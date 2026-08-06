@@ -10,10 +10,10 @@ import { layoutCourses, rangesOverlap } from "../utils/conflicts";
 const EXPORT_SCALE = 2;
 const EXPORT_WIDTH = 1800;
 
-const TIME_BG = "#FDE68A";
-const TIME_TEXT = "#78350F";
-const DAY_BG = "#C8E6C9";
-const DAY_TEXT = "#1B5E20";
+const TIME_BG = "#FDE047";
+const TIME_TEXT = "#713F12";
+const DAY_BG = "#81C784";
+const DAY_TEXT = "#0B3D0F";
 const GRID_LINE = "#d9d9d9";
 
 /** Base cell proportions — scaled so the timetable fills the whole page. */
@@ -52,10 +52,16 @@ interface GridGeometry {
   height: number;
 }
 
+/**
+ * Days shown in the export: always Monday–Friday (even if empty), plus any
+ * weekend day that actually has a class.
+ */
 function exportDaysOf(data: ExportTableData): WeekDay[] {
-  return [...data.activeDays]
-    .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
-    .filter((d) => data.courses.some((c) => c.day === d));
+  const weekdaySet = new Set<WeekDay>(["MON", "TUE", "WED", "THU", "FRI"]);
+  const scheduled = new Set<WeekDay>(data.courses.map((c) => c.day));
+  const extra = data.activeDays.filter((d) => !weekdaySet.has(d) && scheduled.has(d));
+  const ordered: WeekDay[] = ["MON", "TUE", "WED", "THU", "FRI", ...extra];
+  return ordered.sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
 }
 
 /**
@@ -116,6 +122,8 @@ function computeGeometry(data: ExportTableData): GridGeometry {
 interface TableLine {
   text: string;
   strong: boolean;
+  fontSize?: number;
+  pinnedToBottom?: boolean;
 }
 
 function pad(n: number): string {
@@ -158,14 +166,15 @@ function effectiveRange(
 }
 
 function appendLines(container: HTMLElement, lines: TableLine[]): void {
-  lines.forEach((line, i) => {
-    const last = i === lines.length - 1;
+  lines.forEach((line) => {
     if (line.text === "") return;
     const span = document.createElement("span");
     span.textContent = line.text;
+    span.style.display = "block";
     if (line.strong) span.style.fontWeight = "700";
+    if (line.fontSize) span.style.fontSize = `${line.fontSize}px`;
+    if (line.pinnedToBottom) span.style.marginTop = "auto";
     container.appendChild(span);
-    if (!last) container.appendChild(document.createElement("br"));
   });
 }
 
@@ -222,6 +231,20 @@ function buildExportGrid(
     boxSizing: "border-box",
   });
 
+  const frame = document.createElement("div");
+  Object.assign(frame.style, {
+    position: "absolute",
+    left: "0",
+    top: "0",
+    width: `${width}px`,
+    height: `${height}px`,
+    border: "3px solid #b0b0b0",
+    boxSizing: "border-box",
+    pointerEvents: "none",
+    zIndex: "10",
+  });
+  root.appendChild(frame);
+
   const corner = document.createElement("div");
   corner.textContent = "Time";
   Object.assign(corner.style, {
@@ -244,8 +267,8 @@ function buildExportGrid(
   root.appendChild(corner);
 
   for (let i = 0; i < days.length; i++) {
-    const th = document.createElement("div");
-    th.textContent = DAY_LABELS[days[i]];
+const th = document.createElement("div");
+    th.textContent = DAY_LABELS[days[i]].toUpperCase();
     Object.assign(th.style, {
       position: "absolute",
       left: `${gut + i * colW}px`,
@@ -329,21 +352,35 @@ function buildExportGrid(
         color: textColor,
         border: conflicting
           ? "1px solid #ef4444"
-          : `1px solid ${darkenHex(color, 0.45)}`,
+          : `1px solid ${darkenHex(color, 0.12)}`,
         padding: "6px 8px",
         boxSizing: "border-box",
         overflow: "hidden",
+        fontSize: "12px",
+        display: "flex",
+        flexDirection: "column",
       });
       appendLines(block, [
-        { text: course.title || course.code, strong: true },
+        { text: course.title || course.code, strong: true, fontSize: 13 },
         ...(course.title && course.code
-          ? [{ text: course.code, strong: false }]
+          ? [{ text: course.code, strong: false, fontSize: 12 }]
           : []),
         {
           text: `${formatTime12(course.startTime).replace(/\s*[AP]M$/i, "")}–${formatTime12(course.endTime).replace(/\s*[AP]M$/i, "")}`,
           strong: false,
+          fontSize: 11,
         },
-        ...(course.room ? [{ text: course.room, strong: false }] : []),
+        ...(course.room ? [{ text: course.room, strong: false, fontSize: 10 }] : []),
+        ...(course.instructor
+          ? [
+              {
+                text: course.instructor,
+                strong: false,
+                fontSize: 10,
+                pinnedToBottom: true,
+              },
+            ]
+          : []),
       ]);
       root.appendChild(block);
     });
