@@ -11,6 +11,8 @@ import SettingsDrawer from "./components/SettingsDrawer";
 import GeminiModal from "./components/GeminiModal";
 import GCalExportModal from "./components/GCalExportModal";
 import ConflictsModal from "./components/ConflictsModal";
+import ExportModal from "./components/ExportModal";
+import TeacherTabs from "./components/TeacherTabs";
 import Toasts from "./components/Toasts";
 import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
@@ -38,6 +40,12 @@ export default function App() {
     updateSettings,
     dismissToast,
     notify,
+    tabs: teacherTabs,
+    activeTab: currentTab,
+    selectTab: selectTeacherTab,
+    addTab: addTeacherTab,
+    renameTab: renameTeacherTab,
+    removeTab: removeTeacherTab,
   } = api;
 
   const [editingCourse, setEditingCourse] = useState<CourseEntry | null>(null);
@@ -45,6 +53,7 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<CourseEntry | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
   const [showGCalExport, setShowGCalExport] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
@@ -189,6 +198,8 @@ export default function App() {
         slotMinutes: settings.slotMinutes,
         showBreaks: settings.showBreaks,
         simplifyExport: settings.simplifyExport,
+        title: settings.teacherMode ? (currentTab?.name || "").trim() : undefined,
+        theme: settings.exportTheme,
       };
       const { exportToJPG, exportToPDF } = await import("./lib/export");
       if (kind === "jpg") await exportToJPG(data, undefined, setExportProgress);
@@ -199,6 +210,21 @@ export default function App() {
       setExporting(null);
       setExportProgress(null);
     }
+  };
+
+  const downloadBackup = () => {
+    const raw = localStorage.getItem("schedule_v1");
+    if (!raw) {
+      notify({ message: "Nothing to back up yet.", kind: "info" });
+      return;
+    }
+    const blob = new Blob([raw], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "schedule-backup.json";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const exportIcs = () => {
@@ -295,6 +321,16 @@ export default function App() {
         )}
 
         <section className="schedule-section">
+          {settings.teacherMode && (
+            <TeacherTabs
+              tabs={teacherTabs}
+              activeId={currentTab?.id ?? null}
+              onSelect={selectTeacherTab}
+              onRename={renameTeacherTab}
+              onAdd={addTeacherTab}
+              onRemove={removeTeacherTab}
+            />
+          )}
           <div className="export-bar">
               <div className="zoom-controls" role="group" aria-label="Zoom timetable">
                 <button
@@ -320,7 +356,7 @@ export default function App() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => handleExport("jpg")}
+                onClick={() => setShowExportModal(true)}
                 disabled={exporting !== null || courses.length === 0}
               >
                 <Icon name="image" size={16} />
@@ -329,7 +365,7 @@ export default function App() {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => handleExport("pdf")}
+                onClick={() => setShowExportModal(true)}
                 disabled={exporting !== null || courses.length === 0}
               >
                 <Icon name="pdf" size={16} />
@@ -366,6 +402,7 @@ export default function App() {
               showConflictBadges={settings.showConflictBadges}
               showBreaks={settings.showBreaks}
               simplifyView={settings.simplifyView}
+              fitAllDays={settings.fitAllDays}
               fontSize={settings.fontSize}
               highlightedCourseIds={highlighted}
             />
@@ -457,6 +494,17 @@ export default function App() {
                 >
                   <Icon name="calendar" size={18} />
                   To Google Calendar
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    downloadBackup();
+                  }}
+                >
+                  <Icon name="download" size={18} />
+                  Download backup
                 </button>
                 <a
                   className="fab-menu-link"
@@ -577,6 +625,19 @@ export default function App() {
             setPendingDelete(null);
           }}
           onClose={() => setPendingDelete(null)}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          theme={settings.exportTheme}
+          disabled={exporting !== null || courses.length === 0}
+          onThemeChange={(theme) => updateSettings({ exportTheme: theme })}
+          onExport={(kind) => {
+            setShowExportModal(false);
+            handleExport(kind);
+          }}
+          onClose={() => setShowExportModal(false)}
         />
       )}
 

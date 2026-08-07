@@ -3,6 +3,7 @@ import type { CourseEntry, CourseFormResult, WeekDay } from "../types";
 import { DAY_LABELS, DAY_SHORT, WEEK_DAYS } from "../types";
 import Modal from "./Modal";
 import Icon from "./icons";
+import TimePicker from "./TimePicker";
 import { findConflicts } from "../utils/conflicts";
 import { hasReadableText, getAccessibleTextColor } from "../utils/contrast";
 import { PALETTE, getAutoColor, courseGroupKey } from "../utils/colors";
@@ -195,32 +196,33 @@ export default function CourseModal({
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="cm-code">
-              Course Code <span className="field-hint">(optional — used for the Google event name)</span>
-            </label>
-            <input
-              id="cm-code"
-              className="input"
-              value={form.code}
-              onChange={(e) => set("code", e.target.value)}
-              placeholder="e.g. CS 202"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="cm-section">
-              Section <span className="field-hint">(optional — to try alternative schedules of the same subject, e.g. A or B)</span>
-            </label>
-            <input
-              id="cm-section"
-              className="input"
-              value={form.section}
-              onChange={(e) => set("section", e.target.value)}
-              placeholder="e.g. A"
-              autoComplete="off"
-            />
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="cm-code">
+                Course Code <span className="field-hint">(optional — used for the Google event name)</span>
+              </label>
+              <input
+                id="cm-code"
+                className="input"
+                value={form.code}
+                onChange={(e) => set("code", e.target.value)}
+                placeholder="e.g. CS 202"
+                autoComplete="off"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="cm-section">
+                Section <span className="field-hint">(alt. schedules, e.g. A or B)</span>
+              </label>
+              <input
+                id="cm-section"
+                className="input"
+                value={form.section}
+                onChange={(e) => set("section", e.target.value)}
+                placeholder="e.g. A"
+                autoComplete="off"
+              />
+            </div>
           </div>
 
           <div className="field">
@@ -270,27 +272,14 @@ export default function CourseModal({
             </div>
           </div>
 
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="cm-start">Start Time *</label>
-              <input
-                id="cm-start"
-                className="input"
-                type="time"
-                value={form.startTime}
-                onChange={(e) => set("startTime", e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="cm-end">End Time *</label>
-              <input
-                id="cm-end"
-                className="input"
-                type="time"
-                value={form.endTime}
-                onChange={(e) => set("endTime", e.target.value)}
-              />
-            </div>
+          <div className="field">
+            <span className="field-label">Start &amp; End Time *</span>
+            <TimePicker
+              startTime={form.startTime}
+              endTime={form.endTime}
+              onChangeStart={(t) => set("startTime", t)}
+              onChangeEnd={(t) => set("endTime", t)}
+            />
           </div>
 
           {timeInvalid && (form.startTime || form.endTime) && (

@@ -26,6 +26,8 @@ interface ScheduleCanvasProps {
   showConflictBadges?: boolean;
   showBreaks?: boolean;
   simplifyView?: boolean;
+  /** Squeeze every day column onto one screen instead of leaving it wide enough to overflow/zoom. */
+  fitAllDays?: boolean;
   zoom?: number;
   fontSize?: number;
   /** Course ids to flash with a highlight ring (e.g. from the conflict panel). */
@@ -45,6 +47,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       showConflictBadges = true,
       showBreaks = true,
       simplifyView = true,
+      fitAllDays = false,
       zoom = 1,
       fontSize = 12,
       highlightedCourseIds,
@@ -55,6 +58,19 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
 
     const canvasEl = useRef<HTMLDivElement | null>(null);
     const [availWidth, setAvailWidth] = useState(0);
+
+    // Force the short "MON/TUE" header labels (and hide the count pill) as the
+    // default on small screens, regardless of column width or zoom.
+    const [isPhone, setIsPhone] = useState(
+      () => typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+    );
+    useEffect(() => {
+      const mq = window.matchMedia("(max-width: 639px)");
+      const update = () => setIsPhone(mq.matches);
+      update();
+      mq.addEventListener("change", update);
+      return () => mq.removeEventListener("change", update);
+    }, []);
 
     useEffect(() => {
       const el = canvasEl.current;
@@ -139,10 +155,20 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
         ? Math.max(0, (availWidth - timeColWidth) / dayCount)
         : Infinity;
     const dayColW = dayCount > 0 ? dayShare : 150 * zoom;
+    // Keep a readable minimum column width so a phone can scroll/zoom rather
+    // than relentlessly squeezing every column to fit the screen width.
+    // "Fit all days" opts back into squeezing everything onto the screen.
+    const colW =
+      dayCount > 0 ? (fitAllDays ? dayColW : Math.max(dayColW, 104)) : 150 * zoom;
     const gridTemplateColumns = `${timeColWidth}px repeat(${dayCount}, minmax(${Math.min(
       150 * zoom,
-      dayColW
+      colW
     )}px, 1fr))`;
+
+    // Use "MON" short day labels and hide the count pill once the column is too
+    // narrow to fit the full day name, instead of flipping only on zoom level.
+    const dayLabelW = measureTextWidth("Wednesday", `${fontSize + 1}px`);
+    const useShortDays = isPhone || colW < dayLabelW + 8;
 
     const byDay = new Map<WeekDay, (typeof laidOut)[number][]>();
     for (const c of laidOut) {
@@ -150,8 +176,6 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       list.push(c);
       byDay.set(c.day, list);
     }
-
-    const condensed = zoom < 0.8;
 
     const colIndex = new Map<WeekDay, number>(
       activeDays.map((day, i) => [day, i + 2])
@@ -207,8 +231,8 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                   animationDelay: `${i * 40}ms`,
                 }}
               >
-                <strong>{condensed ? DAY_SHORT[day].toUpperCase() : DAY_LABELS[day]}</strong>
-                {!condensed && <span className="day-count">{dayCourses.length}</span>}
+                <strong>{useShortDays ? DAY_SHORT[day].toUpperCase() : DAY_LABELS[day]}</strong>
+                {!useShortDays && <span className="day-count">{dayCourses.length}</span>}
               </div>
             );
           })}
@@ -297,7 +321,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
               const conflicting = course.conflictCount > 0 || course.overlapsBreak;
               const rowsSpanned = gridRowEnd - gridRowStart;
               const blockHeight = rowsSpanned * 40 * zoom;
-              const blockWidth = dayColW * (course.widthPercent / 100);
+              const blockWidth = colW * (course.widthPercent / 100);
               const codeLabel = course.section
                 ? `${course.code} · ${course.section}`
                 : course.code;

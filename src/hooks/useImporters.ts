@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import type { CourseEntry } from "../types";
-import { validateSchema } from "../utils/persistence";
 import { parseIcs } from "../utils/gcal";
 
 /**
@@ -34,8 +33,10 @@ export function useImporters(
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(String(reader.result));
-        if (!validateSchema(parsed)) {
+        const parsed = JSON.parse(String(reader.result)) as {
+          courses?: CourseEntry[];
+        };
+        if (!Array.isArray(parsed.courses)) {
           alert("This backup file is invalid or from an incompatible version.");
           return;
         }

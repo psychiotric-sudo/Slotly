@@ -1,18 +1,13 @@
-import type { CourseEntry, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
+import type { CourseEntry, ExportTheme, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
 import { DAY_LABELS } from "../types";
 import type { GridRowModel } from "../utils/time";
 import { bandTimeLabel, buildGridRowModel, fitBlockContent, formatTime12, measureTextWidth, timeToMinutes } from "../utils/time";
 import { darkenHex, effectiveColor } from "../utils/colors";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { layoutCourses, rangesOverlap } from "../utils/conflicts";
+import { DEFAULT_EXPORT_THEME } from "../utils/exportTheme";
 
 const EXPORT_SCALE = 1.25;
-
-const TIME_BG = "#FDE047";
-const TIME_TEXT = "#713F12";
-const DAY_BG = "#81C784";
-const DAY_TEXT = "#0B3D0F";
-const GRID_LINE = "#d9d9d9";
 
 /** Base cell proportions — scaled so the timetable fills the whole page. */
 const GUTTER = 76;
@@ -40,6 +35,10 @@ export interface ExportTableData {
   slotMinutes: SlotMinutes;
   showBreaks: boolean;
   simplifyExport: boolean;
+  /** Class/section/year title, shown above the table (teacher mode). */
+  title?: string;
+  /** Colors for the printable timetable (time column + day header row). */
+  theme?: ExportTheme;
 }
 
 const DAY_ORDER: WeekDay[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -198,6 +197,8 @@ async function renderTableCanvas(
   await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
   onProgress?.(8);
 
+  const theme = data.theme ?? DEFAULT_EXPORT_THEME;
+
   const { courses, breaks = [], showBreaks = true } = data;
   const days = exportDaysOf(data);
   const { gut, colW, headerH, rowH, rows } = geometry;
@@ -211,7 +212,9 @@ async function renderTableCanvas(
   // main thread and freeze the tab. Bound the total pixels (and each side)
   // so the encode always stays fast, while keeping proportions intact.
   const logicalW = width + padding * 2;
-  const logicalH = height + padding * 2;
+  const title = (data.title ?? "").trim();
+  const titlePad = title ? 38 : 0;
+  const logicalH = height + padding * 2 + titlePad;
   const MAX_PIXELS = 6_500_000;
   const MAX_DIM = 8192;
   const scale = Math.min(
@@ -228,30 +231,48 @@ async function renderTableCanvas(
 
   ctx.scale(scale, scale);
   ctx.translate(padding, padding);
+  // When a class title is set, push the table down so the title sits in its own
+  // white band above the grid (still inside the outer frame).
+  const topOffset = titlePad;
+  ctx.translate(0, topOffset);
 
-  // White base fills the whole export frame (including the padding gutter).
-  fillRect(ctx, -padding, -padding, width + padding * 2, height + padding * 2, "#ffffff");
+  // White base fills the whole export frame (including the padding gutter and
+  // the title band above the grid — otherwise the title area is transparent
+  // and JPG fills it black).
+  fillRect(
+    ctx,
+    -padding,
+    -padding - titlePad,
+    width + padding * 2,
+    height + padding * 2 + titlePad,
+    "#ffffff"
+  );
 
   // Outer frame.
   ctx.lineWidth = 3;
   ctx.strokeStyle = "#b0b0b0";
-  ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+  ctx.strokeRect(1.5, 1.5 - titlePad, width - 3, height + titlePad - 3);
+
+  // Class/section title (teacher mode).
+  if (title) {
+    drawText(ctx, title, width / 2, -titlePad / 2, width - 60, `700 ${titlePad / 2}px ${FONT}`, "#111827", "center");
+  }
 
   // Corner cell ("Time").
-  fillRect(ctx, 0, 0, gut, headerH, DAY_BG);
+  fillRect(ctx, 0, 0, gut, headerH, theme.dayBg);
   ctx.lineWidth = 2;
   ctx.strokeStyle = "#90a488";
   ctx.strokeRect(0, 0, gut, headerH);
-  drawText(ctx, "Time", 12, headerH / 2, gut - 24, `700 13px ${FONT}`, DAY_TEXT, "left");
+  drawText(ctx, "Time", 12, headerH / 2, gut - 24, `700 13px ${FONT}`, theme.dayText, "left");
 
   // Day headers.
   for (let i = 0; i < dayCount; i++) {
     const x = gut + i * colW;
-    fillRect(ctx, x, 0, colW, headerH, DAY_BG);
+    fillRect(ctx, x, 0, colW, headerH, theme.dayBg);
     ctx.lineWidth = 1;
     ctx.strokeStyle = "#90a488";
     ctx.strokeRect(x + 0.5, 0.5, colW - 1, headerH - 1);
-    drawText(ctx, DAY_LABELS[days[i]].toUpperCase(), x + colW / 2, headerH / 2, colW - 8, `700 12px ${FONT}`, DAY_TEXT, "center");
+    drawText(ctx, DAY_LABELS[days[i]].toUpperCase(), x + colW / 2, headerH / 2, colW - 8, `700 12px ${FONT}`, theme.dayText, "center");
   }
   onProgress?.(16);
   await nextPaint();
@@ -265,13 +286,13 @@ async function renderTableCanvas(
     const isTrailingFree = isMerged && r === rows.length - 1;
 
     if (isTrailingFree) {
-      fillRect(ctx, 0, top, gut, rowH, TIME_BG);
+      fillRect(ctx, 0, top, gut, rowH, theme.timeBg);
       strokeCell(ctx, 0, top, gut, rowH, "#d9c276");
-      drawText(ctx, bandTimeLabel(row), gut - 12, top + rowH / 2, gut - 24, `700 11px ${FONT}`, TIME_TEXT, "right", false);
+      drawText(ctx, bandTimeLabel(row), gut - 12, top + rowH / 2, gut - 24, `700 11px ${FONT}`, theme.timeText, "right", false);
       for (let i = 0; i < dayCount; i++) {
         const x = gut + i * colW;
         fillRect(ctx, x, top, colW, rowH, "#ffffff");
-        strokeCell(ctx, x, top, colW, rowH, GRID_LINE);
+        strokeCell(ctx, x, top, colW, rowH, theme.gridLine);
       }
       if (r % 4 === 3) {
         onProgress?.(16 + Math.round(((r + 1) / rows.length) * 26));
@@ -280,7 +301,7 @@ async function renderTableCanvas(
       continue;
     }
 
-    fillRect(ctx, 0, top, gut, rowH, isMerged ? "#f6f2ea" : TIME_BG);
+    fillRect(ctx, 0, top, gut, rowH, isMerged ? "#f6f2ea" : theme.timeBg);
     strokeCell(ctx, 0, top, gut, rowH, isMerged ? "#e0d7c6" : "#d9c276");
     drawText(
       ctx,
@@ -289,14 +310,14 @@ async function renderTableCanvas(
       top + rowH / 2,
       gut - 24,
       isMerged ? `italic 500 11px ${FONT}` : `700 11px ${FONT}`,
-      isMerged ? "#8a8177" : TIME_TEXT,
+      isMerged ? "#8a8177" : theme.timeText,
       "right",
       false
     );
 
     if (isMerged) {
       fillRect(ctx, gut, top, dayCount * colW, rowH, "#f6f2ea");
-      strokeCell(ctx, gut, top, dayCount * colW, rowH, GRID_LINE);
+      strokeCell(ctx, gut, top, dayCount * colW, rowH, theme.gridLine);
       drawText(
         ctx,
         "FREE TIME",
@@ -311,7 +332,7 @@ async function renderTableCanvas(
       for (let i = 0; i < dayCount; i++) {
         const x = gut + i * colW;
         fillRect(ctx, x, top, colW, rowH, "#ffffff");
-        strokeCell(ctx, x, top, colW, rowH, GRID_LINE);
+        strokeCell(ctx, x, top, colW, rowH, theme.gridLine);
       }
     }
 

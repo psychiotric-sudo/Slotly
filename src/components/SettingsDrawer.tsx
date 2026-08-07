@@ -155,7 +155,36 @@ export default function SettingsDrawer({
               onChange={(e) => onUpdate({ showBreaks: e.target.checked })}
             />
           </label>
+          <label className="toggle-row">
+            <span>Fit all days to screen (mobile)</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.fitAllDays}
+              onChange={(e) => onUpdate({ fitAllDays: e.target.checked })}
+            />
+          </label>
         </div>
+
+<div className="settings-group">
+            <h3>Teacher mode</h3>
+            <label className="toggle-row">
+              <span>I'm a teacher</span>
+              <input
+                type="checkbox"
+                className="toggle"
+                checked={settings.teacherMode}
+                onChange={(e) => onUpdate({ teacherMode: e.target.checked })}
+              />
+            </label>
+            {settings.teacherMode && (
+              <p className="settings-hint">
+                Manage multiple class schedules side by side. A tab bar appears above the timetable —
+                add a tab for each section you teach. The active tab's name is printed as the title on
+                your exported schedule.
+              </p>
+            )}
+          </div>
 
         <div className="settings-group">
           <h3>Simplified grid</h3>

@@ -43,6 +43,15 @@ export interface ScheduleBreak {
   endTime: string; // "HH:mm" 24hr
 }
 
+/** Colors used by the printable timetable (time column + day header row). */
+export interface ExportTheme {
+  timeBg: string;
+  timeText: string;
+  dayBg: string;
+  dayText: string;
+  gridLine: string;
+}
+
 export interface CourseEntry {
   id: string;
   title: string;
@@ -75,6 +84,14 @@ export interface ScheduleSettings {
   simplifyView: boolean;
   /** Merge gaps/long blocks into single rows when exporting. */
   simplifyExport: boolean;
+  /** Fit every day column to the screen width (mobile). Default off: columns keep a readable width and the schedule scrolls/zooms. */
+  fitAllDays: boolean;
+  /** Color theme for the exported timetable. */
+  exportTheme: ExportTheme;
+  /** Teacher mode reveals extra fields (class label, multi-class tabs). */
+  teacherMode: boolean;
+  /** Class/section/year annotation (teacher mode) shown on the exported timetable. */
+  classLabel: string;
 }
 
 export interface ScheduleState {
@@ -83,6 +100,24 @@ export interface ScheduleState {
   courses: CourseEntry[];
   breaks: ScheduleBreak[];
   settings: ScheduleSettings;
+}
+
+/** One class/section schedule in teacher mode (a browsable tab). */
+export interface TeacherTab {
+  id: string;
+  /** Section/class name (e.g. "Physics · Section B · Year 2"). Also the export title. */
+  name: string;
+  courses: CourseEntry[];
+  breaks: ScheduleBreak[];
+}
+
+/** Persisted workspace: teacher mode has many tabs; student mode has one (the list stays length ≥ 1). */
+export interface WorkspaceState {
+  schemaVersion: number;
+  savedAt: number;
+  settings: ScheduleSettings;
+  tabs: TeacherTab[];
+  activeId: string | null;
 }
 
 /** Result of the Add/Edit modal: one study load scheduled across N days. */

@@ -1,7 +1,15 @@
-import type { CourseEntry, ScheduleBreak, ScheduleSettings, ScheduleState, WeekDay } from "../types";
+import type {
+  CourseEntry,
+  ScheduleBreak,
+  ScheduleSettings,
+  TeacherTab,
+  WeekDay,
+  WorkspaceState,
+} from "../types";
+import { DEFAULT_EXPORT_THEME, normalizeExportTheme } from "./exportTheme";
 
 export const STORAGE_KEY = "schedule_v1";
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const DEFAULT_SETTINGS: ScheduleSettings = {
   startHour: 7,
@@ -15,6 +23,10 @@ export const DEFAULT_SETTINGS: ScheduleSettings = {
   showBreaks: true,
   simplifyView: false,
   simplifyExport: false,
+  fitAllDays: false,
+  exportTheme: { ...DEFAULT_EXPORT_THEME },
+  teacherMode: false,
+  classLabel: "",
 };
 
 const WEEK_DAY_SET: ReadonlySet<string> = new Set([
@@ -59,23 +71,6 @@ function isCourseEntry(value: unknown): value is CourseEntry {
   );
 }
 
-export function validateSchema(parsed: unknown): parsed is ScheduleState {
-  if (typeof parsed !== "object" || parsed === null) return false;
-  const p = parsed as Record<string, unknown>;
-  if (typeof p.schemaVersion !== "number" || p.schemaVersion < 1 || p.schemaVersion > SCHEMA_VERSION) {
-    return false;
-  }
-  if (!Array.isArray(p.courses)) return false;
-  if (!p.courses.every(isCourseEntry)) return false;
-  if (typeof p.settings !== "object" || p.settings === null) return false;
-  return true;
-}
-
-function normalizeBreaks(value: unknown): ScheduleBreak[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(isBreakEntry);
-}
-
 export function normalizeSettings(
   settings: Partial<ScheduleSettings> | undefined
 ): ScheduleSettings {
@@ -112,42 +107,114 @@ export function normalizeSettings(
   if (typeof settings.simplifyExport === "boolean") {
     base.simplifyExport = settings.simplifyExport;
   }
+  if (typeof settings.fitAllDays === "boolean") {
+    base.fitAllDays = settings.fitAllDays;
+  }
+  base.exportTheme = normalizeExportTheme(settings.exportTheme);
+  if (typeof settings.teacherMode === "boolean") {
+    base.teacherMode = settings.teacherMode;
+  }
+  if (typeof settings.classLabel === "string") {
+    base.classLabel = settings.classLabel;
+  }
   return base;
 }
 
-export function saveState(state: Omit<ScheduleState, "schemaVersion" | "savedAt">): void {
+function isTabEntry(value: unknown): value is TeacherTab {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.id === "string" &&
+    typeof v.name === "string" &&
+    Array.isArray(v.courses) &&
+    v.courses.every(isCourseEntry) &&
+    Array.isArray(v.breaks) &&
+    v.breaks.every(isBreakEntry)
+  );
+}
+
+function migrateCourses(courses: CourseEntry[]): CourseEntry[] {
+  // Migration: pre-auto-color entries keep their stored color as a manual override.
+  return courses.map((c) =>
+    c.colorOverride === undefined ? { ...c, colorOverride: c.colorHex } : c
+  );
+}
+
+export function saveState(state: {
+  settings: ScheduleSettings;
+  tabs: TeacherTab[];
+  activeId: string | null;
+}): void {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        schemaVersion: SCHEMA_VERSION,
-        savedAt: Date.now(),
-        courses: state.courses,
-        breaks: state.breaks,
-        settings: state.settings,
-      })
-    );
+    const body: WorkspaceState = {
+      schemaVersion: SCHEMA_VERSION,
+      savedAt: Date.now(),
+      settings: state.settings,
+      tabs: state.tabs,
+      activeId: state.activeId ?? null,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(body));
   } catch (err) {
     console.warn("Persistence failed:", err);
   }
 }
 
-export function loadState(): ScheduleState | null {
+/**
+ * Loads the workspace. Handles the v1–v3 legacy shape (a single `courses`/
+ * `breaks` schedule) by migrating it into a workspace with one tab, so existing
+ * users keep their schedule untouched.
+ */
+export function loadState(): WorkspaceState | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    if (!validateSchema(parsed)) return null;
-    // Migration: pre-auto-color entries keep their stored color as a manual override.
-    const courses = parsed.courses.map((c: CourseEntry) =>
-      c.colorOverride === undefined ? { ...c, colorOverride: c.colorHex } : c
-    );
-    const breaks = normalizeBreaks(parsed.breaks);
-    const settings =
-      typeof parsed.schemaVersion === "number" && parsed.schemaVersion < 2
-        ? { ...parsed.settings, simplifyView: false, simplifyExport: false }
-        : parsed.settings;
-    return { ...parsed, courses, breaks, settings } as ScheduleState;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    // Legacy v1–v3 single-schedule shape.
+    if (Array.isArray(parsed.courses)) {
+      const settings = parsed.settings as Partial<ScheduleSettings> | undefined;
+      const normalized =
+        typeof parsed.schemaVersion === "number" && parsed.schemaVersion < 2
+          ? normalizeSettings({
+              ...settings,
+              simplifyView: false,
+              simplifyExport: false,
+              fitAllDays: false,
+            })
+          : normalizeSettings(settings);
+      const tab: TeacherTab = {
+        id: "tab-solo",
+        name: (normalized.classLabel || "My Schedule").trim(),
+        courses: migrateCourses(parsed.courses as CourseEntry[]),
+        breaks: Array.isArray(parsed.breaks) ? (parsed.breaks as ScheduleBreak[]) : [],
+      };
+      return {
+        schemaVersion: SCHEMA_VERSION,
+        savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : Date.now(),
+        settings: normalized,
+        tabs: [tab],
+        activeId: tab.id,
+      };
+    }
+
+    // v4 workspace shape.
+    if (!Array.isArray(parsed.tabs) || parsed.tabs.length === 0) return null;
+    const tabs: TeacherTab[] = parsed.tabs.filter(isTabEntry).map((t) => ({
+      ...t,
+      courses: migrateCourses(t.courses),
+    }));
+    if (tabs.length === 0) return null;
+    const activeId =
+      typeof parsed.activeId === "string" && tabs.some((t) => t.id === parsed.activeId)
+        ? parsed.activeId
+        : tabs[0].id;
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : Date.now(),
+      settings: normalizeSettings((parsed.settings as Partial<ScheduleSettings> | undefined) ?? {}),
+      tabs,
+      activeId,
+    };
   } catch {
     return null;
   }
