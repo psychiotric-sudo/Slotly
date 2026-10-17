@@ -1144,6 +1144,24 @@ a:hover {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
+.teacher-tabs__action.danger {
+  color: var(--danger);
+}
+
+.teacher-tabs__action.confirming {
+  width: auto;
+  padding: 4px 8px;
+  gap: 4px;
+  color: #fff;
+  background: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.teacher-tabs__confirm-label {
+  white-space: nowrap;
+}
+
 .teacher-tabs__add {
   flex-shrink: 0;
   display: inline-flex;

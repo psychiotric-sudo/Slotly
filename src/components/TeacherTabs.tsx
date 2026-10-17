@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import type { TeacherTab } from "../types";
 
@@ -20,6 +20,7 @@ export default function TeacherTabs({
   onRemove,
 }: TeacherTabsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const draftRef = useRef<HTMLInputElement>(null);
 
   const commit = (id: string) => {
@@ -27,6 +28,23 @@ export default function TeacherTabs({
     setEditingId(null);
     if (next.trim()) onRename(id, next.trim());
   };
+
+  const handleRemove = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirmRemoveId === id) {
+      setConfirmRemoveId(null);
+      onRemove(id);
+    } else {
+      setConfirmRemoveId(id);
+    }
+  };
+
+  // Auto-cancel a pending delete confirmation after 4s so it doesn't linger.
+  useEffect(() => {
+    if (!confirmRemoveId) return;
+    const t = setTimeout(() => setConfirmRemoveId(null), 4000);
+    return () => clearTimeout(t);
+  }, [confirmRemoveId]);
 
   return (
     <div className="teacher-tabs" role="tablist" aria-label="Class schedules">
@@ -41,10 +59,16 @@ export default function TeacherTabs({
               aria-selected={active}
               tabIndex={active ? 0 : -1}
               className={`teacher-tabs__tab${active ? " active" : ""}`}
-              onClick={() => !active && !editing && onSelect(tab.id)}
+              onClick={() => {
+                if (!active && !editing) {
+                  setConfirmRemoveId(null);
+                  onSelect(tab.id);
+                }
+              }}
               onKeyDown={(e) => {
                 if ((e.key === "Enter" || e.key === " ") && !active && !editing) {
                   e.preventDefault();
+                  setConfirmRemoveId(null);
                   onSelect(tab.id);
                 }
               }}
@@ -88,15 +112,23 @@ export default function TeacherTabs({
                   {tabs.length > 1 && (
                     <button
                       type="button"
-                      className="teacher-tabs__action danger"
-                      title="Remove this class"
-                      aria-label={`Remove ${tab.name || "class"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemove(tab.id);
-                      }}
+                      className={`teacher-tabs__action danger${confirmRemoveId === tab.id ? " confirming" : ""}`}
+                      title={
+                        confirmRemoveId === tab.id
+                          ? "Click again to delete this class"
+                          : "Remove this class"
+                      }
+                      aria-label={
+                        confirmRemoveId === tab.id
+                          ? `Confirm delete ${tab.name || "class"}`
+                          : `Remove ${tab.name || "class"}`
+                      }
+                      onClick={(e) => handleRemove(tab.id, e)}
                     >
                       <Icon name="trash" size={13} />
+                      {confirmRemoveId === tab.id && (
+                        <span className="teacher-tabs__confirm-label">Delete?</span>
+                      )}
                     </button>
                   )}
                 </>

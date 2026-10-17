@@ -1,8 +1,9 @@
 import type { CourseEntry, ScheduleBreak } from "../types";
+import { newId } from "../utils/id";
 
 export function buildDemoBreaks(): ScheduleBreak[] {
   return [
-    { id: crypto.randomUUID(), label: "LUNCH BREAK", startTime: "12:00", endTime: "13:00" },
+    { id: newId(), label: "LUNCH BREAK", startTime: "12:00", endTime: "13:00" },
   ];
 }
 
@@ -21,7 +22,7 @@ export function buildDemoCourses(): CourseEntry[] {
   ): CourseEntry => {
     n += 1;
     return {
-      id: crypto.randomUUID(),
+      id: newId(),
       title,
       code,
       instructor,

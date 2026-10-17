@@ -3,6 +3,7 @@ import CourseList from "./CourseList";
 import Icon from "./icons";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { GOOGLE_CALENDAR_EXPORT_URL } from "../utils/gcal";
+import { STORAGE_KEY } from "../utils/persistence";
 
 interface LeftPanelProps {
   courses: CourseEntry[];
@@ -34,7 +35,7 @@ export default function LeftPanel({
   onRequestBackup,
 }: LeftPanelProps) {
   const exportBackup = () => {
-    const raw = localStorage.getItem("schedule_v1");
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       alert("Nothing to export yet.");
       return;

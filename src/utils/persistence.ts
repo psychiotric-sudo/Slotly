@@ -144,7 +144,7 @@ export function saveState(state: {
   settings: ScheduleSettings;
   tabs: TeacherTab[];
   activeId: string | null;
-}): void {
+}): boolean {
   try {
     const body: WorkspaceState = {
       schemaVersion: SCHEMA_VERSION,
@@ -154,19 +154,18 @@ export function saveState(state: {
       activeId: state.activeId ?? null,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(body));
+    return true;
   } catch (err) {
     console.warn("Persistence failed:", err);
+    return false;
   }
 }
 
 /**
- * Loads the workspace. Handles the v1–v3 legacy shape (a single `courses`/
- * `breaks` schedule) by migrating it into a workspace with one tab, so existing
- * users keep their schedule untouched.
+ * Parses a stored/backup workspace string (v1–v3 single schedule or v4
+ * multi-tab workspace). Returns null when the payload is unreadable.
  */
-export function loadState(): WorkspaceState | null {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
+function parseWorkspace(raw: string): WorkspaceState | null {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
 
@@ -186,7 +185,9 @@ export function loadState(): WorkspaceState | null {
         id: "tab-solo",
         name: (normalized.classLabel || "My Schedule").trim(),
         courses: migrateCourses(parsed.courses as CourseEntry[]),
-        breaks: Array.isArray(parsed.breaks) ? (parsed.breaks as ScheduleBreak[]) : [],
+        breaks: Array.isArray(parsed.breaks)
+          ? (parsed.breaks as ScheduleBreak[])
+          : [],
       };
       return {
         schemaVersion: SCHEMA_VERSION,
@@ -205,17 +206,59 @@ export function loadState(): WorkspaceState | null {
     }));
     if (tabs.length === 0) return null;
     const activeId =
-      typeof parsed.activeId === "string" && tabs.some((t) => t.id === parsed.activeId)
+      typeof parsed.activeId === "string" &&
+      tabs.some((t) => t.id === parsed.activeId)
         ? parsed.activeId
         : tabs[0].id;
     return {
       schemaVersion: SCHEMA_VERSION,
       savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : Date.now(),
-      settings: normalizeSettings((parsed.settings as Partial<ScheduleSettings> | undefined) ?? {}),
+      settings: normalizeSettings(
+        (parsed.settings as Partial<ScheduleSettings> | undefined) ?? {}
+      ),
       tabs,
       activeId,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Loads the workspace. Handles the v1–v3 legacy shape (a single `courses`/
+ * `breaks` schedule) by migrating it into a workspace with one tab, so existing
+ * users keep their schedule untouched. Never throws (storage may be blocked).
+ */
+export function loadState(): WorkspaceState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return parseWorkspace(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** A parsed backup file, reduced to what restoring actually needs. */
+export interface RestoredBackup {
+  courses: CourseEntry[];
+  breaks: ScheduleBreak[];
+  settings: ScheduleSettings;
+  tabName: string;
+}
+
+/**
+ * Parses a JSON backup produced by Slotly (any schema version) for the restore
+ * flow. Returns null when the payload is not a recognizable schedule.
+ */
+export function parseBackup(raw: string): RestoredBackup | null {
+  const ws = parseWorkspace(raw);
+  if (!ws) return null;
+  const tab = ws.tabs.find((t) => t.id === ws.activeId) ?? ws.tabs[0];
+  return {
+    courses: tab.courses,
+    breaks: tab.breaks,
+    settings: ws.settings,
+    tabName: tab.name,
+  };
 }

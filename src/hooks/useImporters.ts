@@ -1,14 +1,18 @@
 import { useRef } from "react";
 import type { CourseEntry } from "../types";
 import { parseIcs } from "../utils/gcal";
+import { parseBackup, type RestoredBackup } from "../utils/persistence";
+
+interface ImporterHandlers {
+  onMergeCourses: (courses: CourseEntry[], label: string) => void;
+  onRestoreBackup: (backup: RestoredBackup, fileName: string) => void;
+}
 
 /**
  * File-based importers (Google Calendar .ics + JSON backup), shared by the
  * desktop sidebar and the mobile FAB menu so both trigger the same pickers.
  */
-export function useImporters(
-  onImport: (courses: CourseEntry[], label: string) => void
-) {
+export function useImporters({ onMergeCourses, onRestoreBackup }: ImporterHandlers) {
   const icsRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
 
@@ -21,7 +25,7 @@ export function useImporters(
           alert("No weekly recurring classes found in that .ics file.");
           return;
         }
-        onImport(entries, file.name);
+        onMergeCourses(entries, file.name);
       } catch {
         alert("Could not read this .ics file.");
       }
@@ -32,18 +36,12 @@ export function useImporters(
   const handleBackupFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as {
-          courses?: CourseEntry[];
-        };
-        if (!Array.isArray(parsed.courses)) {
-          alert("This backup file is invalid or from an incompatible version.");
-          return;
-        }
-        onImport(parsed.courses, file.name);
-      } catch {
-        alert("Could not read this file as a valid schedule backup.");
+      const backup = parseBackup(String(reader.result));
+      if (!backup) {
+        alert("This backup file is invalid or from an incompatible version.");
+        return;
       }
+      onRestoreBackup(backup, file.name);
     };
     reader.readAsText(file);
   };

@@ -1,4 +1,5 @@
 import type { CourseEntry, WeekDay } from "../types";
+import { newId } from "./id";
 
 const ICS_DAY_TO_WEEKDAY: Record<string, WeekDay> = {
   MO: "MON",
@@ -148,7 +149,7 @@ export function parseIcs(text: string): CourseEntry[] {
     for (const day of event.days) {
       n += 1;
       entries.push({
-        id: crypto.randomUUID(),
+        id: newId(),
         title: event.summary,
         code: event.summary,
         instructor: "",

@@ -7,14 +7,11 @@ import type {
   TeacherTab,
   WeekDay,
 } from "../types";
-import {
-  DEFAULT_SETTINGS,
-  loadState,
-  saveState,
-} from "../utils/persistence";
+import { DEFAULT_SETTINGS, loadState, saveState } from "../utils/persistence";
 import { buildDemoBreaks, buildDemoCourses } from "../data/demo";
 import { assignUniqueColors, courseGroupKey } from "../utils/colors";
 import { detectSlotMinutes } from "../utils/time";
+import { newId } from "../utils/id";
 
 export type ToastKind = "success" | "danger" | "info";
 
@@ -26,7 +23,13 @@ export interface Toast {
   onAction?: () => void;
 }
 
-const MAX_HISTORY = 20;
+const MAX_HISTORY = 50;
+
+interface HistorySnapshot {
+  courses: CourseEntry[];
+  breaks: ScheduleBreak[];
+  slotMinutes: SlotMinutes;
+}
 
 export function useSchedule() {
   const [initial] = useState(loadState);
@@ -53,15 +56,10 @@ export function useSchedule() {
   );
 
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const toothId = useRef(0);
+  const toastIdRef = useRef(0);
 
   const courses = activeTab?.courses ?? [];
   const breaks = activeTab?.breaks ?? [];
-
-  useEffect(() => {
-  if (!activeTab || !safeTabs.length) return;
-  saveState({ settings, tabs: safeTabs, activeId: activeTab.id });
-}, [settings, safeTabs, activeTab]);
 
   // Theme on <html>.
   useEffect(() => {
@@ -69,20 +67,31 @@ export function useSchedule() {
   }, [settings.theme]);
 
   const pushToast = useCallback((toast: Omit<Toast, "id">) => {
-    const id = ++toothId.current;
+    const id = ++toastIdRef.current;
     setToasts((prev) => [...prev, { ...toast, id }]);
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
   }, []);
 
+  const saveFailedToastRef = useRef(false);
+  useEffect(() => {
+    if (!activeTab || !safeTabs.length) return;
+    const ok = saveState({ settings, tabs: safeTabs, activeId: activeTab.id });
+    if (!ok && !saveFailedToastRef.current) {
+      saveFailedToastRef.current = true;
+      pushToast({
+        message: "Couldn't save to this device's storage — changes may be lost.",
+        kind: "danger",
+      });
+    }
+  }, [settings, safeTabs, activeTab, pushToast]);
+
   // ---- Helpers to mutate the active tab ----
   const setActiveTabCourses = useCallback(
     (next: CourseEntry[]) => {
       setTabs((prev) =>
-        prev.map((t) =>
-          t.id === activeTab?.id ? { ...t, courses: next } : t
-        )
+        prev.map((t) => (t.id === activeTab?.id ? { ...t, courses: next } : t))
       );
     },
     [activeTab?.id]
@@ -98,18 +107,57 @@ export function useSchedule() {
   const activeTabIdRef = useRef(activeTab?.id);
   activeTabIdRef.current = activeTab?.id;
 
-  // ---- History (per active tab) ----
-  const historyRef = useRef<CourseEntry[][]>([]);
-  const futureRef = useRef<CourseEntry[][]>([]);
-  const skipHistoryRef = useRef(false);
-
+  // Latest-values refs (read inside callbacks so they never go stale).
   const coursesRef = useRef(courses);
   coursesRef.current = courses;
+  const breaksRef = useRef(breaks);
+  breaksRef.current = breaks;
+  const slotRef = useRef(settings.slotMinutes);
+  slotRef.current = settings.slotMinutes;
+
+  // ---- History (per active tab; reset on tab switch) ----
+  const historyRef = useRef<HistorySnapshot[]>([]);
+  const futureRef = useRef<HistorySnapshot[]>([]);
+  // Bumped whenever the stacks change so canUndo/canRedo stay reactive.
+  const [histTick, setHistTick] = useState(0);
+
+  const bumpHistory = useCallback(() => setHistTick((t) => t + 1), []);
+
+  const snapshot = useCallback(
+    (): HistorySnapshot => ({
+      courses: coursesRef.current,
+      breaks: breaksRef.current,
+      slotMinutes: slotRef.current,
+    }),
+    []
+  );
+
+  // Call BEFORE a mutation so undo can restore the pre-mutation state.
+  const pushHistory = useCallback(() => {
+    historyRef.current.push(snapshot());
+    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+    futureRef.current = [];
+    bumpHistory();
+  }, [snapshot, bumpHistory]);
+
+  const applySnapshot = useCallback(
+    (snap: HistorySnapshot) => {
+      setActiveTabCourses(snap.courses);
+      setActiveTabBreaks(snap.breaks);
+      setSettings((prev) =>
+        prev.slotMinutes === snap.slotMinutes
+          ? prev
+          : { ...prev, slotMinutes: snap.slotMinutes }
+      );
+    },
+    [setActiveTabCourses, setActiveTabBreaks]
+  );
 
   const resetHistoryForTab = useCallback(() => {
     historyRef.current = [];
     futureRef.current = [];
-  }, []);
+    bumpHistory();
+  }, [bumpHistory]);
 
   const switchTab = useCallback(
     (id: string) => {
@@ -121,7 +169,7 @@ export function useSchedule() {
   );
 
   const addTab = useCallback(() => {
-    const id = crypto.randomUUID();
+    const id = newId();
     const count = safeTabs.length + 1;
     const name = `Section ${count}`;
     const next: TeacherTab = { id, name, courses: [], breaks: [] };
@@ -153,115 +201,101 @@ export function useSchedule() {
   // ---- Course CRUD (active tab) ----
   const addCourse = useCallback(
     (course: CourseEntry) => {
+      pushHistory();
       setActiveTabCourses([...coursesRef.current, course]);
       pushToast({ message: `Added "${course.title}"`, kind: "success" });
     },
-    [setActiveTabCourses, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const updateCourse = useCallback(
     (updated: CourseEntry) => {
-      setActiveTabCourses(coursesRef.current.map((c) => (c.id === updated.id ? updated : c)));
+      pushHistory();
+      setActiveTabCourses(
+        coursesRef.current.map((c) => (c.id === updated.id ? updated : c))
+      );
       pushToast({ message: `Updated "${updated.title}"`, kind: "success" });
     },
-    [setActiveTabCourses, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const deleteCourse = useCallback(
     (id: string) => {
       const target = coursesRef.current.find((c) => c.id === id);
+      if (!target) return;
+      pushHistory();
       setActiveTabCourses(coursesRef.current.filter((c) => c.id !== id));
-      if (target) {
-        pushToast({
-          message: `Deleted "${target.title}"`,
-          kind: "danger",
-          actionLabel: "Undo",
-          onAction: () => {
-            skipHistoryRef.current = true;
-            addCourse(target);
-          },
-        });
-      }
+      pushToast({
+        message: `Deleted "${target.title}"`,
+        kind: "danger",
+        actionLabel: "Undo",
+        onAction: undo,
+      });
     },
-    [setActiveTabCourses, pushToast, addCourse]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const deleteCourseGroup = useCallback(
     (key: string) => {
       const matching = coursesRef.current.filter((c) => courseGroupKey(c) === key);
       if (matching.length === 0) return;
-      const target = matching[0];
-      const next = coursesRef.current.filter((c) => courseGroupKey(c) !== key);
-      const hadBreaks = breaks.length > 0;
-      const prevBreaks = breaks;
-      setActiveTabCourses(next);
-      if (hadBreaks) setActiveTabBreaks([]);
+      pushHistory();
+      setActiveTabCourses(coursesRef.current.filter((c) => courseGroupKey(c) !== key));
       pushToast({
-        message: `Deleted "${target.title || target.code}"`,
+        message: `Deleted "${matching[0].title || matching[0].code}"`,
         kind: "danger",
         actionLabel: "Undo",
-        onAction: () => {
-          skipHistoryRef.current = true;
-          setActiveTabCourses([...coursesRef.current, ...matching]);
-          if (hadBreaks) setActiveTabBreaks(prevBreaks);
-        },
+        onAction: undo,
       });
     },
-    [setActiveTabCourses, setActiveTabBreaks, breaks, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const clearAll = useCallback(() => {
     const count = coursesRef.current.length;
-    const hadBreaks = breaks.length;
-    if (count === 0 && hadBreaks === 0) return;
-    const prevBreaks = breaks;
+    const breakCount = breaksRef.current.length;
+    if (count === 0 && breakCount === 0) return;
+    pushHistory();
     setActiveTabCourses([]);
-    if (hadBreaks) setActiveTabBreaks([]);
-    if (settings.slotMinutes !== 30) setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
+    setActiveTabBreaks([]);
+    if (slotRef.current !== 30) {
+      setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
+    }
     pushToast({
       message:
         count > 0
-          ? `Cleared ${count} class${count === 1 ? "" : "es"}${hadBreaks > 0 ? ` and ${hadBreaks} break${hadBreaks === 1 ? "" : "s"}` : ""}`
-          : `Cleared ${hadBreaks} break${hadBreaks === 1 ? "" : "s"}`,
+          ? `Cleared ${count} class${count === 1 ? "" : "es"}${
+              breakCount > 0
+                ? ` and ${breakCount} break${breakCount === 1 ? "" : "s"}`
+                : ""
+            }`
+          : `Cleared ${breakCount} break${breakCount === 1 ? "" : "s"}`,
       kind: "danger",
       actionLabel: "Undo",
-      onAction: () => {
-        skipHistoryRef.current = true;
-        setActiveTabCourses(historyRef.current[historyRef.current.length - 1] ?? []);
-        if (hadBreaks) setActiveTabBreaks(prevBreaks);
-      },
+      onAction: undo,
     });
-  }, [setActiveTabCourses, setActiveTabBreaks, breaks, settings.slotMinutes, pushToast]);
+  }, [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]);
 
   const loadDemo = useCallback(() => {
-    skipHistoryRef.current = true;
-    historyRef.current.push(coursesRef.current);
-    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
-    futureRef.current = [];
+    pushHistory();
     setActiveTabCourses(buildDemoCourses());
     setActiveTabBreaks(buildDemoBreaks());
     setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
     pushToast({ message: "Loaded demo schedule", kind: "success" });
-  }, [setActiveTabCourses, setActiveTabBreaks, pushToast]);
+  }, [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]);
 
   const importCourses = useCallback(
     (imported: CourseEntry[], label: string) => {
-      skipHistoryRef.current = true;
-      historyRef.current.push(coursesRef.current);
-      if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
-      futureRef.current = [];
+      pushHistory();
       setActiveTabCourses(imported);
       pushToast({ message: `Imported ${label}`, kind: "success" });
     },
-    [setActiveTabCourses, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const mergeCourses = useCallback(
     (incoming: CourseEntry[], label: string) => {
-      skipHistoryRef.current = true;
-      historyRef.current.push(coursesRef.current);
-      if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
-      futureRef.current = [];
+      pushHistory();
       const colored = assignUniqueColors(incoming, coursesRef.current);
       setActiveTabCourses([...coursesRef.current, ...colored]);
       pushToast({
@@ -269,51 +303,90 @@ export function useSchedule() {
         kind: "success",
       });
     },
-    [setActiveTabCourses, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const addBreak = useCallback(
     (br: ScheduleBreak) => {
-      setActiveTabBreaks([...breaks, br]);
+      pushHistory();
+      setActiveTabBreaks([...breaksRef.current, br]);
     },
-    [setActiveTabBreaks, breaks]
+    [pushHistory, setActiveTabBreaks]
   );
   const updateBreak = useCallback(
     (id: string, patch: Partial<ScheduleBreak>) => {
-      setActiveTabBreaks(breaks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+      pushHistory();
+      setActiveTabBreaks(
+        breaksRef.current.map((b) => (b.id === id ? { ...b, ...patch } : b))
+      );
     },
-    [setActiveTabBreaks, breaks]
+    [pushHistory, setActiveTabBreaks]
   );
   const deleteBreak = useCallback(
     (id: string) => {
-      setActiveTabBreaks(breaks.filter((b) => b.id !== id));
+      pushHistory();
+      setActiveTabBreaks(breaksRef.current.filter((b) => b.id !== id));
     },
-    [setActiveTabBreaks, breaks]
+    [pushHistory, setActiveTabBreaks]
+  );
+
+  // Merges a backup's courses + breaks into the active tab as ONE undo step,
+// deduping breaks by label + time window.
+  const mergeBackup = useCallback(
+    (incoming: CourseEntry[], newBreaks: ScheduleBreak[], label: string) => {
+      pushHistory();
+      const colored = assignUniqueColors(incoming, coursesRef.current);
+      setActiveTabCourses([...coursesRef.current, ...colored]);
+      const seen = new Set(
+        breaksRef.current.map((b) => `${b.label}|${b.startTime}|${b.endTime}`)
+      );
+      const fresh = newBreaks.filter((b) => {
+        const sig = `${b.label}|${b.startTime}|${b.endTime}`;
+        if (seen.has(sig)) return false;
+        seen.add(sig);
+        return true;
+      });
+      if (fresh.length > 0) setActiveTabBreaks([...breaksRef.current, ...fresh]);
+      pushToast({
+        message: `Merged ${colored.length} class${colored.length === 1 ? "" : "es"}${
+          fresh.length > 0
+            ? ` and ${fresh.length} break${fresh.length === 1 ? "" : "s"}`
+            : ""
+        } from ${label}`,
+        kind: "success",
+      });
+    },
+    [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]
   );
 
   const importSchedule = useCallback(
-    (incoming: CourseEntry[], newBreaks: ScheduleBreak[], label: string, slotMinutes?: SlotMinutes) => {
-      skipHistoryRef.current = true;
-      historyRef.current.push(coursesRef.current);
-      if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
-      futureRef.current = [];
+    (
+      incoming: CourseEntry[],
+      newBreaks: ScheduleBreak[],
+      label: string,
+      slotMinutes?: SlotMinutes
+    ) => {
+      pushHistory();
       const colored = assignUniqueColors(incoming, []);
-      const detected = detectSlotMinutes(colored, slotMinutes ?? settings.slotMinutes);
-      const slot: SlotMinutes = typeof slotMinutes === "number" && slotMinutes > 0 ? slotMinutes : detected;
+      const detected = detectSlotMinutes(colored, slotMinutes ?? slotRef.current);
+      const slot: SlotMinutes =
+        typeof slotMinutes === "number" && slotMinutes > 0 ? slotMinutes : detected;
       setActiveTabCourses(colored);
       setActiveTabBreaks(newBreaks);
-      if (slot !== settings.slotMinutes) setSettings((prev) => ({ ...prev, slotMinutes: slot }));
+      if (slot !== slotRef.current) {
+        setSettings((prev) => ({ ...prev, slotMinutes: slot }));
+      }
       pushToast({
         message: `Imported ${colored.length} class${colored.length === 1 ? "" : "es"} and ${newBreaks.length} break${newBreaks.length === 1 ? "" : "s"} from ${label}`,
         kind: "success",
       });
     },
-    [setActiveTabCourses, setActiveTabBreaks, settings.slotMinutes, pushToast]
+    [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]
   );
 
   const applyCourseColor = useCallback(
     (key: string, override: string | null) => {
-      skipHistoryRef.current = true;
+      pushHistory();
       setActiveTabCourses(
         coursesRef.current.map((c) =>
           courseGroupKey(c) === key
@@ -322,7 +395,7 @@ export function useSchedule() {
         )
       );
     },
-    [setActiveTabCourses]
+    [pushHistory, setActiveTabCourses]
   );
 
   const saveCourseGroup = useCallback(
@@ -337,36 +410,39 @@ export function useSchedule() {
       const now = Date.now();
       const created = days.map((day, i) => ({
         ...base,
-        id: crypto.randomUUID(),
+        id: newId(),
         day,
         createdAt: now + i,
         updatedAt: editingKey ? now : undefined,
       }));
+      pushHistory();
       setActiveTabCourses([...others, ...created]);
       pushToast({
         message: `Saved "${base.title || base.code}" on ${days.length} day${days.length === 1 ? "" : "s"}`,
         kind: "success",
       });
     },
-    [setActiveTabCourses, pushToast]
+    [pushHistory, setActiveTabCourses, pushToast]
   );
 
   const undo = useCallback(() => {
     const previous = historyRef.current.pop();
     if (previous === undefined) return;
-    futureRef.current.push(coursesRef.current);
-    setActiveTabCourses(previous);
-  }, [setActiveTabCourses]);
+    futureRef.current.push(snapshot());
+    applySnapshot(previous);
+    bumpHistory();
+  }, [snapshot, applySnapshot, bumpHistory]);
 
   const redo = useCallback(() => {
     const next = futureRef.current.pop();
     if (next === undefined) return;
-    historyRef.current.push(coursesRef.current);
-    setActiveTabCourses(next);
-  }, [setActiveTabCourses]);
+    historyRef.current.push(snapshot());
+    applySnapshot(next);
+    bumpHistory();
+  }, [snapshot, applySnapshot, bumpHistory]);
 
-  const canUndo = useMemo(() => historyRef.current.length > 0, [courses]);
-  const canRedo = useMemo(() => futureRef.current.length > 0, [courses]);
+  const canUndo = useMemo(() => historyRef.current.length > 0, [histTick]);
+  const canRedo = useMemo(() => futureRef.current.length > 0, [histTick]);
 
   const updateSettings = useCallback((patch: Partial<ScheduleSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
@@ -378,7 +454,8 @@ export function useSchedule() {
       const next = has
         ? prev.activeDays.filter((d) => d !== day)
         : [...prev.activeDays, day].sort(
-            (a, b) => "MONTUEWEDTHUFRISATSUN".indexOf(a) - "MONTUEWEDTHUFRISATSUN".indexOf(b)
+            (a, b) =>
+              "MONTUEWEDTHUFRISATSUN".indexOf(a) - "MONTUEWEDTHUFRISATSUN".indexOf(b)
           );
       return { ...prev, activeDays: next };
     });
@@ -420,6 +497,7 @@ export function useSchedule() {
     loadDemo,
     importCourses,
     mergeCourses,
+    mergeBackup,
     importSchedule,
     addBreak,
     updateBreak,
@@ -430,7 +508,8 @@ export function useSchedule() {
     redo,
     updateSettings,
     toggleDay,
-    dismissToast: (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id)),
+    dismissToast: (id: number) =>
+      setToasts((prev) => prev.filter((t) => t.id !== id)),
     notify: pushToast,
   };
 }

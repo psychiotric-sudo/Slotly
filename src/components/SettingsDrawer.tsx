@@ -3,6 +3,7 @@ import Modal from "./Modal";
 import Icon from "./icons";
 import type { ScheduleBreak, ScheduleSettings } from "../types";
 import { validTime, timeToMinutes } from "../utils/time";
+import { newId } from "../utils/id";
 
 interface SettingsDrawerProps {
   settings: ScheduleSettings;
@@ -33,7 +34,7 @@ export default function SettingsDrawer({
     const end = draft.endTime.trim();
     if (!label || !validTime(start) || !validTime(end)) return;
     if (timeToMinutes(end) <= timeToMinutes(start)) return;
-    onAddBreak({ id: crypto.randomUUID(), label, startTime: start, endTime: end });
+    onAddBreak({ id: newId(), label, startTime: start, endTime: end });
     setDraft({ label: "", startTime: "", endTime: "" });
   };
 

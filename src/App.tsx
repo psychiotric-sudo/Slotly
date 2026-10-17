@@ -13,11 +13,14 @@ import GCalExportModal from "./components/GCalExportModal";
 import ConflictsModal from "./components/ConflictsModal";
 import ExportModal from "./components/ExportModal";
 import TeacherTabs from "./components/TeacherTabs";
+import RestoreModal from "./components/RestoreModal";
 import Toasts from "./components/Toasts";
 import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
 import { findConflictPairs, layoutCourses } from "./utils/conflicts";
 import { buildIcs, GOOGLE_CALENDAR_EXPORT_URL } from "./utils/gcal";
+import type { RestoredBackup } from "./utils/persistence";
+import { STORAGE_KEY } from "./utils/persistence";
 import { WEEK_DAYS } from "./types";
 
 export default function App() {
@@ -33,6 +36,7 @@ export default function App() {
     clearAll,
     loadDemo,
     mergeCourses,
+    mergeBackup,
     importSchedule,
     saveCourseGroup,
     undo,
@@ -57,6 +61,10 @@ export default function App() {
   const [showGemini, setShowGemini] = useState(false);
   const [showGCalExport, setShowGCalExport] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<{
+    backup: RestoredBackup;
+    fileName: string;
+  } | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<WeekDay>("MON");
@@ -71,7 +79,11 @@ export default function App() {
     setFabMenu(null);
   };
 
-  const importers = useImporters(mergeCourses);
+  const importers = useImporters({
+    onMergeCourses: mergeCourses,
+    onRestoreBackup: (backup, fileName) =>
+      setPendingRestore({ backup, fileName }),
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridZoomRef = useRef(gridZoom);
@@ -213,7 +225,7 @@ export default function App() {
   };
 
   const downloadBackup = () => {
-    const raw = localStorage.getItem("schedule_v1");
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       notify({ message: "Nothing to back up yet.", kind: "info" });
       return;
@@ -654,6 +666,33 @@ export default function App() {
             loadDemo();
             setShowSettings(false);
           }}
+        />
+      )}
+
+      {pendingRestore && (
+        <RestoreModal
+          fileName={pendingRestore.fileName}
+          tabName={pendingRestore.backup.tabName}
+          courseCount={pendingRestore.backup.courses.length}
+          breakCount={pendingRestore.backup.breaks.length}
+          onMerge={() => {
+            mergeBackup(
+              pendingRestore.backup.courses,
+              pendingRestore.backup.breaks,
+              pendingRestore.fileName
+            );
+            setPendingRestore(null);
+          }}
+          onReplace={() => {
+            importSchedule(
+              pendingRestore.backup.courses,
+              pendingRestore.backup.breaks,
+              pendingRestore.fileName,
+              pendingRestore.backup.settings.slotMinutes
+            );
+            setPendingRestore(null);
+          }}
+          onClose={() => setPendingRestore(null)}
         />
       )}
 

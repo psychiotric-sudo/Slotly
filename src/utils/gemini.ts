@@ -1,5 +1,6 @@
 import type { CourseEntry, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
 import { detectSlotMinutes } from "./time";
+import { newId } from "./id";
 
 export const GEMINI_PROMPT = `You are converting a class schedule into JSON for the Slotly timetable app.
 
@@ -190,7 +191,7 @@ export function parseGeminiJson(text: string): GeminiParseResult {
       seen.add(key);
       n += 1;
       entries.push({
-        id: crypto.randomUUID(),
+        id: newId(),
         title,
         code: (raw.code ?? "").trim(),
         instructor: (raw.instructor ?? "").trim(),
@@ -218,7 +219,7 @@ export function parseGeminiJson(text: string): GeminiParseResult {
     const start = normalizeTime(raw.startTime ?? "");
     const end = normalizeTime(raw.endTime ?? "");
     if (!label || !start || !end || end <= start) continue;
-    breaks.push({ id: crypto.randomUUID(), label, startTime: start, endTime: end });
+    breaks.push({ id: newId(), label, startTime: start, endTime: end });
     m += 1;
   }
 
