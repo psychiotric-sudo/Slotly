@@ -176,6 +176,17 @@ button {
   font-family: var(--font-primary);
 }
 
+.route-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-primary);
+  font-size: 14px;
+  color: var(--text-tertiary);
+  background: var(--bg-canvas);
+}
+
 a {
   color: var(--accent);
   text-decoration: none;
@@ -3218,6 +3229,7 @@ textarea.input {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 

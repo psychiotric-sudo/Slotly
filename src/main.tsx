@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, Suspense, lazy, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -7,10 +7,11 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
-import App from "./App";
-import Landing from "./pages/Landing";
-import Share from "./pages/Share";
 import "./index.css";
+
+const App = lazy(() => import("./App"));
+const Landing = lazy(() => import("./pages/Landing"));
+const Share = lazy(() => import("./pages/Share"));
 
 /** Reset scroll on route change (unless the URL carries a hash anchor). */
 function ScrollToTop() {
@@ -21,16 +22,26 @@ function ScrollToTop() {
   return null;
 }
 
+function RouteFallback() {
+  return (
+    <div className="route-loading" role="status">
+      Loading…
+    </div>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/app" element={<App />} />
-        <Route path="/s/:payload" element={<Share />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/app" element={<App />} />
+          <Route path="/s/:payload" element={<Share />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   </StrictMode>
 );
