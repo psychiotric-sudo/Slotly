@@ -199,15 +199,6 @@ export function useSchedule() {
   );
 
   // ---- Course CRUD (active tab) ----
-  const addCourse = useCallback(
-    (course: CourseEntry) => {
-      pushHistory();
-      setActiveTabCourses([...coursesRef.current, course]);
-      pushToast({ message: `Added "${course.title}"`, kind: "success" });
-    },
-    [pushHistory, setActiveTabCourses, pushToast]
-  );
-
   const updateCourse = useCallback(
     (updated: CourseEntry) => {
       pushHistory();
@@ -215,22 +206,6 @@ export function useSchedule() {
         coursesRef.current.map((c) => (c.id === updated.id ? updated : c))
       );
       pushToast({ message: `Updated "${updated.title}"`, kind: "success" });
-    },
-    [pushHistory, setActiveTabCourses, pushToast]
-  );
-
-  const deleteCourse = useCallback(
-    (id: string) => {
-      const target = coursesRef.current.find((c) => c.id === id);
-      if (!target) return;
-      pushHistory();
-      setActiveTabCourses(coursesRef.current.filter((c) => c.id !== id));
-      pushToast({
-        message: `Deleted "${target.title}"`,
-        kind: "danger",
-        actionLabel: "Undo",
-        onAction: undo,
-      });
     },
     [pushHistory, setActiveTabCourses, pushToast]
   );
@@ -283,15 +258,6 @@ export function useSchedule() {
     setSettings((prev) => ({ ...prev, slotMinutes: 30 }));
     pushToast({ message: "Loaded demo schedule", kind: "success" });
   }, [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]);
-
-  const importCourses = useCallback(
-    (imported: CourseEntry[], label: string) => {
-      pushHistory();
-      setActiveTabCourses(imported);
-      pushToast({ message: `Imported ${label}`, kind: "success" });
-    },
-    [pushHistory, setActiveTabCourses, pushToast]
-  );
 
   const mergeCourses = useCallback(
     (incoming: CourseEntry[], label: string) => {
@@ -412,20 +378,6 @@ export function useSchedule() {
     [pushHistory, setActiveTabCourses, setActiveTabBreaks, pushToast]
   );
 
-  const applyCourseColor = useCallback(
-    (key: string, override: string | null) => {
-      pushHistory();
-      setActiveTabCourses(
-        coursesRef.current.map((c) =>
-          courseGroupKey(c) === key
-            ? { ...c, colorOverride: override ?? undefined, updatedAt: Date.now() }
-            : c
-        )
-      );
-    },
-    [pushHistory, setActiveTabCourses]
-  );
-
   const saveCourseGroup = useCallback(
     (
       base: Omit<CourseEntry, "id" | "day" | "createdAt" | "updatedAt">,
@@ -476,19 +428,6 @@ export function useSchedule() {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const toggleDay = useCallback((day: WeekDay) => {
-    setSettings((prev) => {
-      const has = prev.activeDays.includes(day);
-      const next = has
-        ? prev.activeDays.filter((d) => d !== day)
-        : [...prev.activeDays, day].sort(
-            (a, b) =>
-              "MONTUEWEDTHUFRISATSUN".indexOf(a) - "MONTUEWEDTHUFRISATSUN".indexOf(b)
-          );
-      return { ...prev, activeDays: next };
-    });
-  }, []);
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
@@ -517,13 +456,10 @@ export function useSchedule() {
     toasts,
     canUndo,
     canRedo,
-    addCourse,
     updateCourse,
-    deleteCourse,
     deleteCourseGroup,
     clearAll,
     loadDemo,
-    importCourses,
     mergeCourses,
     duplicateCourses,
     mergeBackup,
@@ -531,12 +467,10 @@ export function useSchedule() {
     addBreak,
     updateBreak,
     deleteBreak,
-    applyCourseColor,
     saveCourseGroup,
     undo,
     redo,
     updateSettings,
-    toggleDay,
     dismissToast: (id: number) =>
       setToasts((prev) => prev.filter((t) => t.id !== id)),
     notify: pushToast,

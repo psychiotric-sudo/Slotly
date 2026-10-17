@@ -74,7 +74,6 @@ export interface ScheduleSettings {
   startHour: number;
   endHour: number;
   slotMinutes: SlotMinutes;
-  activeDays: WeekDay[];
   theme: Theme;
   fontSize: number;
   sundayFirst: boolean;
@@ -90,8 +89,6 @@ export interface ScheduleSettings {
   exportTheme: ExportTheme;
   /** Teacher mode reveals extra fields (class label, multi-class tabs). */
   teacherMode: boolean;
-  /** Class/section/year annotation (teacher mode) shown on the exported timetable. */
-  classLabel: string;
 }
 
 export interface ScheduleState {

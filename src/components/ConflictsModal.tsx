@@ -101,15 +101,19 @@ export default function ConflictsModal({
                 <div
                   key={`${pair.day}-${idx}`}
                   className="conflict-card"
-                  onClick={() =>
-                    onHighlight(pair.b ? [pair.a.id, pair.b.id] : [pair.a.id])
-                  }
                 >
-                  <div className="conflict-card__time">
+                  <button
+                    type="button"
+                    className="conflict-card__time"
+                    onClick={() =>
+                      onHighlight(pair.b ? [pair.a.id, pair.b.id] : [pair.a.id])
+                    }
+                    title="Highlight both on the grid"
+                  >
                     <span>{formatTime12(minutesToTime(pair.startMin))}</span>–
                     <span>{formatTime12(minutesToTime(pair.endMin))}</span>
                     <em>{durationLabel(pair.overlapMinutes)}</em>
-                  </div>
+                  </button>
                   {pair.kind === "break" ? (
                     <>
                       <CourseRow

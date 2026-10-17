@@ -20,8 +20,8 @@ import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
 import { findConflictPairs, layoutCourses } from "./utils/conflicts";
 import { buildIcs, GOOGLE_CALENDAR_EXPORT_URL } from "./utils/gcal";
+import { downloadBackup } from "./utils/backup";
 import type { RestoredBackup } from "./utils/persistence";
-import { STORAGE_KEY } from "./utils/persistence";
 import { WEEK_DAYS } from "./types";
 
 export default function App() {
@@ -74,7 +74,6 @@ export default function App() {
   } | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<WeekDay>("MON");
   const [exporting, setExporting] = useState<"jpg" | "pdf" | null>(null);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [gridZoom, setGridZoom] = useState(1);
@@ -238,19 +237,10 @@ export default function App() {
     }
   };
 
-  const downloadBackup = () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
+  const handleDownloadBackup = () => {
+    if (!downloadBackup()) {
       notify({ message: "Nothing to back up yet.", kind: "info" });
-      return;
     }
-    const blob = new Blob([raw], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "schedule-backup.json";
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   const exportIcs = () => {
@@ -280,26 +270,6 @@ export default function App() {
       kind: "info",
     });
     window.open(GOOGLE_CALENDAR_EXPORT_URL, "_blank", "noopener,noreferrer");
-  };
-
-  const handleScroll = () => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const headers = Array.from(
-      container.querySelectorAll<HTMLElement>("[data-day-header]")
-    );
-    if (headers.length === 0) return;
-    const anchor = container.getBoundingClientRect().left + 76;
-    let best = headers[0].dataset.dayHeader as WeekDay;
-    let bestDist = Infinity;
-    for (const h of headers) {
-      const dist = Math.abs(h.getBoundingClientRect().left - anchor);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = h.dataset.dayHeader as WeekDay;
-      }
-    }
-    if (best !== activeTab) setActiveTab(best);
   };
 
   return (
@@ -346,7 +316,8 @@ export default function App() {
             setSidebarOpen(false);
           }}
           onRequestBackup={importers.requestBackup}
-          onError={(message) => notify({ message, kind: "danger" })}
+          onRequestIcs={importers.requestIcs}
+          onDownloadBackup={handleDownloadBackup}
         />
 
         {sidebarOpen && (
@@ -392,17 +363,8 @@ export default function App() {
                 onClick={() => setShowExportModal(true)}
                 disabled={exporting !== null || courses.length === 0}
               >
-                <Icon name="image" size={16} />
-                {exporting === "jpg" ? "Rendering…" : "Save as Image"}
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowExportModal(true)}
-                disabled={exporting !== null || courses.length === 0}
-              >
-                <Icon name="pdf" size={16} />
-                {exporting === "pdf" ? "Rendering…" : "Save as PDF"}
+                <Icon name="download" size={16} />
+                Export
               </button>
               <button
                 type="button"
@@ -421,7 +383,6 @@ export default function App() {
           <div
             ref={scrollRef}
             className="schedule-scroll"
-            onScroll={handleScroll}
           >
             <ScheduleCanvas
               courses={courses}
@@ -502,6 +463,17 @@ export default function App() {
                   role="menuitem"
                   onClick={() => {
                     closeFab();
+                    importers.requestIcs();
+                  }}
+                >
+                  <Icon name="calendar" size={18} />
+                  From .ics file
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
                     importers.requestBackup();
                   }}
                 >
@@ -536,7 +508,7 @@ export default function App() {
                   role="menuitem"
                   onClick={() => {
                     closeFab();
-                    downloadBackup();
+                    handleDownloadBackup();
                   }}
                 >
                   <Icon name="download" size={18} />

@@ -27,6 +27,7 @@ export default function SettingsDrawer({
   onResetDemo,
 }: SettingsDrawerProps) {
   const [draft, setDraft] = useState({ label: "", startTime: "", endTime: "" });
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   const addDraft = () => {
     const label = draft.label.trim();
@@ -281,17 +282,41 @@ export default function SettingsDrawer({
 
         <div className="settings-group">
           <h3>Data</h3>
-          <button
-            type="button"
-            className="btn-danger-ghost"
-            onClick={() => {
-              if (window.confirm("Clear everything and load the demo schedule?")) {
-                onResetDemo();
-              }
-            }}
-          >
-            Reset to demo data
-          </button>
+          {confirmingReset ? (
+            <div className="confirm-row" role="group" aria-label="Confirm reset">
+              <span className="confirm-row__label">
+                Clear everything and load the demo schedule?
+              </span>
+              <div className="confirm-row__actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setConfirmingReset(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger-solid"
+                  data-default-focus
+                  onClick={() => {
+                    setConfirmingReset(false);
+                    onResetDemo();
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn-danger-ghost"
+              onClick={() => setConfirmingReset(true)}
+            >
+              Reset to demo data
+            </button>
+          )}
         </div>
       </div>
 

@@ -68,28 +68,20 @@ export default function CourseList({
         const gcalUrl = buildGcalAddUrl(group);
         const fit = sectionFits.get(group.key);
         return (
-          <li
-            key={group.key}
-            className="course-card"
-            role="button"
-            tabIndex={0}
-            onClick={() => onEdit(first)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onEdit(first);
-              }
-            }}
-            aria-label={`Edit ${group.title}`}
-            title="Click to edit"
-          >
+          <li key={group.key} className="course-card">
             <span
               className="course-card-colorbar"
               style={{ backgroundColor: effectiveColor(first) }}
               aria-hidden="true"
             />
-            <div className="course-card-main">
-              <div className="course-card-top">
+            <button
+              type="button"
+              className="course-card-main"
+              onClick={() => onEdit(first)}
+              aria-label={`Edit ${group.title}`}
+              title="Click to edit"
+            >
+              <span className="course-card-top">
                 <strong className="course-card-title">
                   {group.title || group.code}
                   {group.section ? <span className="course-card-section">Sec {group.section}</span> : null}
@@ -101,7 +93,7 @@ export default function CourseList({
                     </span>
                   ))}
                 </span>
-              </div>
+              </span>
               {group.title && group.code && (
                 <span className="course-card-code">{group.code}</span>
               )}
@@ -124,7 +116,7 @@ export default function CourseList({
                     : `${fit.conflicts} clash${fit.conflicts === 1 ? "" : "es"}`}
                 </span>
               )}
-            </div>
+            </button>
             <div className="course-card-actions">
               <a
                 className="icon-btn"

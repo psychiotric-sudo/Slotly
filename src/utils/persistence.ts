@@ -3,7 +3,6 @@ import type {
   ScheduleBreak,
   ScheduleSettings,
   TeacherTab,
-  WeekDay,
   WorkspaceState,
 } from "../types";
 import { DEFAULT_EXPORT_THEME, normalizeExportTheme } from "./exportTheme";
@@ -15,7 +14,6 @@ export const DEFAULT_SETTINGS: ScheduleSettings = {
   startHour: 7,
   endHour: 17,
   slotMinutes: 30,
-  activeDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
   theme: "light",
   fontSize: 12,
   sundayFirst: false,
@@ -26,7 +24,6 @@ export const DEFAULT_SETTINGS: ScheduleSettings = {
   fitAllDays: false,
   exportTheme: { ...DEFAULT_EXPORT_THEME },
   teacherMode: false,
-  classLabel: "",
 };
 
 const WEEK_DAY_SET: ReadonlySet<string> = new Set([
@@ -81,11 +78,6 @@ export function normalizeSettings(
   if (typeof settings.slotMinutes === "number" && settings.slotMinutes > 0) {
     base.slotMinutes = settings.slotMinutes;
   }
-  if (Array.isArray(settings.activeDays)) {
-    base.activeDays = settings.activeDays.filter((d): d is WeekDay =>
-      WEEK_DAY_SET.has(d)
-    );
-  }
   if (settings.theme === "light" || settings.theme === "dark") {
     base.theme = settings.theme;
   }
@@ -113,9 +105,6 @@ export function normalizeSettings(
   base.exportTheme = normalizeExportTheme(settings.exportTheme);
   if (typeof settings.teacherMode === "boolean") {
     base.teacherMode = settings.teacherMode;
-  }
-  if (typeof settings.classLabel === "string") {
-    base.classLabel = settings.classLabel;
   }
   return base;
 }
@@ -183,7 +172,7 @@ function parseWorkspace(raw: string): WorkspaceState | null {
           : normalizeSettings(settings);
       const tab: TeacherTab = {
         id: "tab-solo",
-        name: (normalized.classLabel || "My Schedule").trim(),
+        name: "My Schedule",
         courses: migrateCourses(parsed.courses as CourseEntry[]),
         breaks: Array.isArray(parsed.breaks)
           ? (parsed.breaks as ScheduleBreak[])

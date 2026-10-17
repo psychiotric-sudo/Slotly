@@ -85,13 +85,6 @@ describe("normalizeSettings", () => {
     expect(out.fontSize).toBe(DEFAULT_SETTINGS.fontSize);
     expect(out.theme).toBe(DEFAULT_SETTINGS.theme);
   });
-
-  it("filters invalid activeDays", () => {
-    const out = normalizeSettings({
-      activeDays: ["MON", "FOO", "TUE"] as never,
-    });
-    expect(out.activeDays).toEqual(["MON", "TUE"]);
-  });
 });
 
 describe("loadState / saveState round-trip", () => {

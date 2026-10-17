@@ -6,7 +6,6 @@ import Icon from "./icons";
 import { getAccessibleTextColor } from "../utils/contrast";
 import { courseGroupKey } from "../utils/colors";
 import { GOOGLE_CALENDAR_EXPORT_URL } from "../utils/gcal";
-import { STORAGE_KEY } from "../utils/persistence";
 
 interface LeftPanelProps {
   courses: CourseEntry[];
@@ -22,7 +21,8 @@ interface LeftPanelProps {
   onExportIcs: () => void;
   onOpenGemini: () => void;
   onRequestBackup: () => void;
-  onError: (message: string) => void;
+  onRequestIcs: () => void;
+  onDownloadBackup: () => void;
 }
 
 export default function LeftPanel({
@@ -39,7 +39,8 @@ export default function LeftPanel({
   onExportIcs,
   onOpenGemini,
   onRequestBackup,
-  onError,
+  onRequestIcs,
+  onDownloadBackup,
 }: LeftPanelProps) {
   const [query, setQuery] = useState("");
   const panelRef = useRef<HTMLElement | null>(null);
@@ -68,21 +69,6 @@ export default function LeftPanel({
           .includes(q)
       )
     : courses;
-
-  const exportBackup = () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      onError("Nothing to export yet.");
-      return;
-    }
-    const blob = new Blob([raw], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "schedule-backup.json";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <aside
@@ -212,6 +198,14 @@ export default function LeftPanel({
         <button
           type="button"
           className="btn-ghost integration-btn"
+          onClick={onRequestIcs}
+        >
+          <Icon name="calendar" size={15} />
+          Import .ics file
+        </button>
+        <button
+          type="button"
+          className="btn-ghost integration-btn"
           onClick={onExportIcs}
           disabled={courses.length === 0}
         >
@@ -219,7 +213,7 @@ export default function LeftPanel({
           Export to Google Calendar
         </button>
         <div className="integration-subrow">
-          <button type="button" className="btn-link" onClick={exportBackup}>
+          <button type="button" className="btn-link" onClick={onDownloadBackup}>
             Download backup
           </button>
           <button type="button" className="btn-link" onClick={onRequestBackup}>
