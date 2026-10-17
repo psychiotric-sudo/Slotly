@@ -8,6 +8,7 @@ interface ExportModalProps {
   disabled: boolean;
   onThemeChange: (theme: ExportTheme) => void;
   onExport: (kind: "jpg" | "pdf") => void;
+  onCopyShareLink: () => void;
   onClose: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function ExportModal({
   disabled,
   onThemeChange,
   onExport,
+  onCopyShareLink,
   onClose,
 }: ExportModalProps) {
   return (
@@ -31,6 +33,24 @@ export default function ExportModal({
           Preview below, tweak the colors if you like, then export — live to JPG or PDF.
         </p>
         <ExportThemeEditor theme={theme} onChange={onThemeChange} />
+        <div className="export-share">
+          <div className="export-share-copy">
+            <strong>Share link</strong>
+            <p className="settings-hint">
+              A link that opens this exact schedule on any device — no account
+              needed.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCopyShareLink}
+            disabled={disabled}
+          >
+            <Icon name="link" size={16} />
+            Copy link
+          </button>
+        </div>
       </div>
       <footer className="modal-footer">
         <button type="button" className="btn-secondary" onClick={onClose}>

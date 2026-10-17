@@ -1398,6 +1398,39 @@ transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
   opacity: 1;
 }
 
+.export-share {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.export-share-copy strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.export-share-copy .settings-hint {
+  margin: 0;
+}
+
+.export-share .btn-secondary {
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .export-share {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 .zoom-controls {
   display: flex;
   align-items: center;

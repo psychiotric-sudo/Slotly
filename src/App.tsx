@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CourseEntry, CourseFormResult, WeekDay } from "./types";
+import type { CourseEntry, CourseFormResult, ScheduleBreak, WeekDay } from "./types";
 import { useSchedule } from "./hooks/useSchedule";
 import { useImporters } from "./hooks/useImporters";
 import { usePageMeta } from "./hooks/usePageMeta";
@@ -22,6 +22,12 @@ import { courseGroupKey } from "./utils/colors";
 import { findConflictPairs, layoutCourses } from "./utils/conflicts";
 import { buildIcs, GOOGLE_CALENDAR_EXPORT_URL } from "./utils/gcal";
 import { downloadBackup } from "./utils/backup";
+import {
+  SHARE_SESSION_KEY,
+  copyText,
+  createShareUrl,
+  decodeShareToken,
+} from "./utils/share";
 import type { RestoredBackup } from "./utils/persistence";
 import { WEEK_DAYS } from "./types";
 
@@ -74,6 +80,12 @@ export default function App() {
     courses: CourseEntry[];
     fileName: string;
   } | null>(null);
+  const [pendingShare, setPendingShare] = useState<{
+    courses: CourseEntry[];
+    breaks: ScheduleBreak[];
+    slotMinutes?: number;
+    tabName: string;
+  } | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exporting, setExporting] = useState<"jpg" | "pdf" | null>(null);
@@ -101,6 +113,38 @@ export default function App() {
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // A token parked by the /s/ page: open it once on mount, then clear the key
+  // immediately (StrictMode re-runs effects; the second pass finds nothing).
+  useEffect(() => {
+    let token: string | null = null;
+    try {
+      token = sessionStorage.getItem(SHARE_SESSION_KEY);
+      if (token) sessionStorage.removeItem(SHARE_SESSION_KEY);
+    } catch {
+      token = null;
+    }
+    if (!token) return;
+    let alive = true;
+    void (async () => {
+      const data = await decodeShareToken(token);
+      if (!alive) return;
+      if (!data) {
+        notify({ message: "That share link couldn't be opened.", kind: "danger" });
+        return;
+      }
+      if (courses.length === 0) {
+        importSchedule(data.courses, data.breaks, "a share link", data.slotMinutes);
+      } else {
+        setPendingShare(data);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // Mount-only: courses/notify are the initial snapshot by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const gridZoomRef = useRef(gridZoom);
   gridZoomRef.current = gridZoom;
   const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
@@ -242,6 +286,29 @@ export default function App() {
   const handleDownloadBackup = () => {
     if (!downloadBackup()) {
       notify({ message: "Nothing to back up yet.", kind: "info" });
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (courses.length === 0) {
+      notify({ message: "Nothing to share yet — add a class first.", kind: "info" });
+      return;
+    }
+    const url = await createShareUrl({
+      courses,
+      breaks,
+      slotMinutes: settings.slotMinutes,
+      tabName: settings.teacherMode ? currentTab?.name || "Shared schedule" : "My Schedule",
+    });
+    if (!url) {
+      notify({ message: "Couldn't build a share link for this schedule.", kind: "danger" });
+      return;
+    }
+    const copied = await copyText(url);
+    if (copied) {
+      notify({ message: "Share link copied — anyone with it can open this schedule.", kind: "success" });
+    } else {
+      window.prompt("Copying was blocked — copy this link by hand:", url);
     }
   };
 
@@ -516,6 +583,17 @@ export default function App() {
                   <Icon name="download" size={18} />
                   Download backup
                 </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    void handleCopyShareLink();
+                  }}
+                >
+                  <Icon name="link" size={18} />
+                  Copy share link
+                </button>
                 <a
                   className="fab-menu-link"
                   role="menuitem"
@@ -647,6 +725,10 @@ export default function App() {
             setShowExportModal(false);
             handleExport(kind);
           }}
+          onCopyShareLink={() => {
+            setShowExportModal(false);
+            void handleCopyShareLink();
+          }}
           onClose={() => setShowExportModal(false)}
         />
       )}
@@ -709,6 +791,29 @@ export default function App() {
             setPendingIcs(null);
           }}
           onClose={() => setPendingIcs(null)}
+        />
+      )}
+
+      {pendingShare && (
+        <ImportChoiceModal
+          sourceLabel={`"${pendingShare.tabName}" (shared link)`}
+          courseCount={pendingShare.courses.length}
+          breakCount={pendingShare.breaks.length}
+          existingCount={courses.length}
+          onMerge={() => {
+            mergeBackup(pendingShare.courses, pendingShare.breaks, "a share link");
+            setPendingShare(null);
+          }}
+          onReplace={() => {
+            importSchedule(
+              pendingShare.courses,
+              pendingShare.breaks,
+              "a share link",
+              pendingShare.slotMinutes
+            );
+            setPendingShare(null);
+          }}
+          onClose={() => setPendingShare(null)}
         />
       )}
 

@@ -22,7 +22,8 @@ export type IconName =
   | "chevron-right"
   | "inbox"
   | "image"
-  | "pdf";
+  | "pdf"
+  | "link";
 
 const PATHS: Record<IconName, string[]> = {
   plus: ["M12 5v14", "M5 12h14"],
@@ -109,6 +110,10 @@ const PATHS: Record<IconName, string[]> = {
     "M9 12h2.5a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9",
     "M15 12h1.5",
     "M16.5 12v3",
+  ],
+  link: [
+    "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71",
+    "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
   ],
 };
 
