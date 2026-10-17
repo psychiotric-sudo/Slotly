@@ -2,7 +2,7 @@
   "name": "Slotly — College Timetable Planner",
   "short_name": "Slotly",
   "description": "Plan your weekly college timetable visually, spot scheduling overlaps, and export to JPG, PDF, or Google Calendar.",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

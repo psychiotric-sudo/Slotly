@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CourseEntry, CourseFormResult, WeekDay } from "./types";
 import { useSchedule } from "./hooks/useSchedule";
 import { useImporters } from "./hooks/useImporters";
+import { usePageMeta } from "./hooks/usePageMeta";
 import TopBar from "./components/TopBar";
 import LeftPanel from "./components/LeftPanel";
 import ScheduleCanvas from "./components/ScheduleCanvas";
@@ -25,6 +26,7 @@ import type { RestoredBackup } from "./utils/persistence";
 import { WEEK_DAYS } from "./types";
 
 export default function App() {
+  usePageMeta("Slotly Planner", "noindex, nofollow");
   const api = useSchedule();
   const {
     courses,

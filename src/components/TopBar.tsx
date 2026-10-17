@@ -1,4 +1,5 @@
 import type { Theme } from "../types";
+import { Link } from "react-router-dom";
 import Icon from "./icons";
 
 interface TopBarProps {
@@ -41,7 +42,7 @@ export default function TopBar({
           <Icon name="menu" size={18} />
         </button>
 
-        <div className="brand">
+        <Link to="/" className="brand" aria-label="Slotly home">
           <svg
             className="brand-logo"
             viewBox="0 0 32 32"
@@ -59,7 +60,7 @@ export default function TopBar({
           </svg>
           <strong className="brand-name">Slotly</strong>
           <span className="brand-tag">timetable builder</span>
-        </div>
+        </Link>
       </div>
 
       <div className="topbar-actions">
