@@ -14,6 +14,7 @@ import ConflictsModal from "./components/ConflictsModal";
 import ExportModal from "./components/ExportModal";
 import TeacherTabs from "./components/TeacherTabs";
 import RestoreModal from "./components/RestoreModal";
+import ImportChoiceModal from "./components/ImportChoiceModal";
 import Toasts from "./components/Toasts";
 import Icon from "./components/icons";
 import { courseGroupKey } from "./utils/colors";
@@ -67,6 +68,10 @@ export default function App() {
     backup: RestoredBackup;
     fileName: string;
   } | null>(null);
+  const [pendingIcs, setPendingIcs] = useState<{
+    courses: CourseEntry[];
+    fileName: string;
+  } | null>(null);
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<WeekDay>("MON");
@@ -82,7 +87,13 @@ export default function App() {
   };
 
   const importers = useImporters({
-    onMergeCourses: mergeCourses,
+    onIcsParsed: (incoming, fileName) => {
+      if (courses.length === 0) {
+        mergeCourses(incoming, fileName);
+      } else {
+        setPendingIcs({ courses: incoming, fileName });
+      }
+    },
     onRestoreBackup: (backup, fileName) =>
       setPendingRestore({ backup, fileName }),
   });
@@ -702,9 +713,29 @@ export default function App() {
         />
       )}
 
+      {pendingIcs && (
+        <ImportChoiceModal
+          sourceLabel={pendingIcs.fileName}
+          courseCount={pendingIcs.courses.length}
+          breakCount={0}
+          existingCount={courses.length}
+          onMerge={() => {
+            mergeCourses(pendingIcs.courses, pendingIcs.fileName);
+            setPendingIcs(null);
+          }}
+          onReplace={() => {
+            importSchedule(pendingIcs.courses, [], pendingIcs.fileName);
+            setPendingIcs(null);
+          }}
+          onClose={() => setPendingIcs(null)}
+        />
+      )}
+
       {showGemini && (
         <GeminiModal
           onImport={importSchedule}
+          onMerge={mergeBackup}
+          existingCourseCount={courses.length}
           onClose={() => setShowGemini(false)}
         />
       )}

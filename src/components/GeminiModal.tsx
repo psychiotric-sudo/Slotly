@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Modal from "./Modal";
 import Icon from "./icons";
-import { GEMINI_PROMPT, parseGeminiJson } from "../utils/gemini";
+import { GEMINI_PROMPT, parseGeminiJson, type GeminiParseResult } from "../utils/gemini";
 import { GEMINI_URL, openGeminiApp } from "../utils/gcal";
 import type { CourseEntry, ScheduleBreak, SlotMinutes } from "../types";
 
@@ -12,14 +12,22 @@ interface GeminiModalProps {
     label: string,
     slotMinutes: SlotMinutes
   ) => void;
+  onMerge: (courses: CourseEntry[], breaks: ScheduleBreak[], label: string) => void;
+  existingCourseCount: number;
   onClose: () => void;
 }
 
-export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
+export default function GeminiModal({
+  onImport,
+  onMerge,
+  existingCourseCount,
+  onClose,
+}: GeminiModalProps) {
   const [output, setOutput] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [parsed, setParsed] = useState<GeminiParseResult | null>(null);
 
   const copyPrompt = async () => {
     try {
@@ -36,9 +44,7 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
     setError(null);
     setTimeout(() => {
       try {
-        const result = parseGeminiJson(output);
-        onImport(result.courses, result.breaks, "Gemini", result.slotMinutes);
-        onClose();
+        setParsed(parseGeminiJson(output));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not parse that JSON.");
       } finally {
@@ -47,17 +53,54 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
     }, 0);
   };
 
+  const doMerge = () => {
+    if (!parsed) return;
+    onMerge(parsed.courses, parsed.breaks, "Gemini");
+    onClose();
+  };
+
+  const doReplace = () => {
+    if (!parsed) return;
+    onImport(parsed.courses, parsed.breaks, "Gemini", parsed.slotMinutes);
+    onClose();
+  };
+
   return (
-    <Modal role="dialog" labelledBy="gemini-title" onClose={onClose} className="gemini-modal">
+    <Modal
+      role="dialog"
+      labelledBy="gemini-title"
+      onClose={onClose}
+      className={`gemini-modal${parsed ? " gemini-modal--choice" : ""}`}
+    >
       <header className="modal-header">
         <h2 id="gemini-title">
-          <Icon name="sparkles" size={17} /> Import with Gemini AI
+          <Icon name="sparkles" size={17} />
+          {parsed ? "Import from Gemini" : "Import with Gemini AI"}
         </h2>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
           <Icon name="x" />
         </button>
       </header>
 
+      {parsed ? (
+        <div className="modal-body">
+          <p>
+            Gemini returned <strong>{parsed.courses.length}</strong> class
+            {parsed.courses.length === 1 ? "" : "es"}
+            {parsed.breaks.length > 0
+              ? ` and ${parsed.breaks.length} break${parsed.breaks.length === 1 ? "" : "s"}`
+              : ""}
+            .
+          </p>
+          {existingCourseCount > 0 && (
+            <p className="settings-hint">
+              Your current tab has {existingCourseCount} class
+              {existingCourseCount === 1 ? "" : "es"}. Merge adds to them (duplicate
+              breaks are skipped); Replace clears the current tab first.
+            </p>
+          )}
+        </div>
+      ) : (
       <div className="modal-body">
         <ol className="gemini-steps">
           <li>
@@ -129,21 +172,43 @@ export default function GeminiModal({ onImport, onClose }: GeminiModalProps) {
 }`}</pre>
         </details>
       </div>
+      )}
 
       <footer className="modal-footer">
-        <div className="footer-spacer" />
-        <button type="button" className="btn-secondary" onClick={onClose}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className="btn-primary"
-          data-default-focus
-          onClick={handleImport}
-          disabled={parsing || output.trim() === ""}
-        >
-          {parsing ? "Importing…" : "Import"}
-        </button>
+        {parsed ? (
+          <>
+            <button type="button" className="btn-secondary" onClick={() => setParsed(null)}>
+              Back
+            </button>
+            <button type="button" className="btn-danger-solid" onClick={doReplace}>
+              Replace
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              data-default-focus
+              onClick={doMerge}
+            >
+              Merge
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="footer-spacer" />
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              data-default-focus
+              onClick={handleImport}
+              disabled={parsing || output.trim() === ""}
+            >
+              {parsing ? "Importing…" : "Import"}
+            </button>
+          </>
+        )}
       </footer>
     </Modal>
   );

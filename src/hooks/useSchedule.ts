@@ -401,7 +401,11 @@ export function useSchedule() {
         setSettings((prev) => ({ ...prev, slotMinutes: slot }));
       }
       pushToast({
-        message: `Imported ${colored.length} class${colored.length === 1 ? "" : "es"} and ${newBreaks.length} break${newBreaks.length === 1 ? "" : "s"} from ${label}`,
+        message: `Imported ${colored.length} class${colored.length === 1 ? "" : "es"}${
+          newBreaks.length > 0
+            ? ` and ${newBreaks.length} break${newBreaks.length === 1 ? "" : "s"}`
+            : ""
+        } from ${label}`,
         kind: "success",
       });
     },

@@ -4,15 +4,16 @@ import { parseIcs } from "../utils/gcal";
 import { parseBackup, type RestoredBackup } from "../utils/persistence";
 
 interface ImporterHandlers {
-  onMergeCourses: (courses: CourseEntry[], label: string) => void;
+  onIcsParsed: (courses: CourseEntry[], fileName: string) => void;
   onRestoreBackup: (backup: RestoredBackup, fileName: string) => void;
 }
 
 /**
  * File-based importers (Google Calendar .ics + JSON backup), shared by the
  * desktop sidebar and the mobile FAB menu so both trigger the same pickers.
+ * Parsed .ics data is handed to onIcsParsed — the app decides merge vs replace.
  */
-export function useImporters({ onMergeCourses, onRestoreBackup }: ImporterHandlers) {
+export function useImporters({ onIcsParsed, onRestoreBackup }: ImporterHandlers) {
   const icsRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +26,7 @@ export function useImporters({ onMergeCourses, onRestoreBackup }: ImporterHandle
           alert("No weekly recurring classes found in that .ics file.");
           return;
         }
-        onMergeCourses(entries, file.name);
+        onIcsParsed(entries, file.name);
       } catch {
         alert("Could not read this .ics file.");
       }
