@@ -11,6 +11,7 @@ import CourseModal from "./components/CourseModal";
 import DeleteModal from "./components/DeleteModal";
 import SettingsDrawer from "./components/SettingsDrawer";
 import GeminiModal from "./components/GeminiModal";
+import CompareModal from "./components/CompareModal";
 import GCalExportModal from "./components/GCalExportModal";
 import ConflictsModal from "./components/ConflictsModal";
 import ExportModal from "./components/ExportModal";
@@ -71,6 +72,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showGemini, setShowGemini] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const [showGCalExport, setShowGCalExport] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<{
@@ -94,7 +96,24 @@ export default function App() {
   const [gridZoom, setGridZoom] = useState(1);
   const [fabMenu, setFabMenu] = useState<"import" | "export" | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "agenda">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "agenda">(() => {
+    try {
+      return localStorage.getItem("slotly_view_mode") === "agenda"
+        ? "agenda"
+        : "grid";
+    } catch {
+      return "grid";
+    }
+  });
+
+  const changeViewMode = (mode: "grid" | "agenda") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("slotly_view_mode", mode);
+    } catch {
+      // Storage blocked — the choice just won't survive a reload.
+    }
+  };
 
   const closeFab = () => {
     setFabOpen(false);
@@ -115,6 +134,62 @@ export default function App() {
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  // Drop .ics / .json files anywhere on the planner to import them.
+  const importersRef = useRef(importers);
+  importersRef.current = importers;
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
+
+  useEffect(() => {
+    let depth = 0;
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth += 1;
+      setDragOver(true);
+    };
+    const onDragLeave = () => {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragOver(false);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragOver(false);
+      const file = e.dataTransfer?.files?.[0];
+      if (!file) return;
+      const name = file.name.toLowerCase();
+      if (name.endsWith(".ics")) {
+        importersRef.current.handleIcsFile(file);
+      } else if (name.endsWith(".json")) {
+        importersRef.current.handleBackupFile(file);
+      } else {
+        notifyRef.current({
+          message: "Drop a .ics calendar file or a Slotly .json backup.",
+          kind: "info",
+        });
+      }
+    };
+
+    window.addEventListener("dragenter", onDragEnter);
+    window.addEventListener("dragleave", onDragLeave);
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter);
+      window.removeEventListener("dragleave", onDragLeave);
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
 
   // A token parked by the /s/ page: open it once on mount, then clear the key
   // immediately (StrictMode re-runs effects; the second pass finds nothing).
@@ -386,6 +461,10 @@ export default function App() {
             setShowGemini(true);
             setSidebarOpen(false);
           }}
+          onOpenCompare={() => {
+            setShowCompare(true);
+            setSidebarOpen(false);
+          }}
           onRequestBackup={importers.requestBackup}
           onRequestIcs={importers.requestIcs}
           onDownloadBackup={handleDownloadBackup}
@@ -412,7 +491,7 @@ export default function App() {
                   type="button"
                   className={viewMode === "grid" ? "active" : ""}
                   aria-pressed={viewMode === "grid"}
-                  onClick={() => setViewMode("grid")}
+                  onClick={() => changeViewMode("grid")}
                 >
                   Grid
                 </button>
@@ -420,7 +499,7 @@ export default function App() {
                   type="button"
                   className={viewMode === "agenda" ? "active" : ""}
                   aria-pressed={viewMode === "agenda"}
-                  onClick={() => setViewMode("agenda")}
+                  onClick={() => changeViewMode("agenda")}
                 >
                   Agenda
                 </button>
@@ -560,6 +639,17 @@ export default function App() {
                 >
                   <Icon name="sparkles" size={18} />
                   From Gemini AI
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closeFab();
+                    setShowCompare(true);
+                  }}
+                >
+                  <Icon name="sliders" size={18} />
+                  Compare two sections
                 </button>
                 <button
                   type="button"
@@ -860,6 +950,14 @@ export default function App() {
         />
       )}
 
+      {showCompare && (
+        <CompareModal
+          ownCourses={courses}
+          onImportSection={(incoming, name) => mergeCourses(incoming, name)}
+          onClose={() => setShowCompare(false)}
+        />
+      )}
+
       {showGCalExport && (
         <GCalExportModal
           onDownload={exportIcs}
@@ -894,6 +992,16 @@ export default function App() {
       )}
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
+
+      {dragOver && (
+        <div className="drop-overlay" role="status" aria-live="polite">
+          <div className="drop-overlay-card">
+            <Icon name="upload" size={28} />
+            <strong>Drop to import</strong>
+            <span>.ics from Google Calendar, or a Slotly .json backup</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

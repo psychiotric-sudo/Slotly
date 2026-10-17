@@ -51,6 +51,15 @@ const FEATURES = [
     visual: "tabs",
   },
   {
+    id: "compare",
+    span: 6,
+    tag: "Sections",
+    tagTone: "green",
+    title: "Choosing between two sections?",
+    body: "Snap both section schedules, let Gemini read them, and see each section's vacant windows and how many of your classes it clashes with — before you enroll.",
+    visual: "compare",
+  },
+  {
     id: "offline",
     span: 6,
     tag: "Privacy",
@@ -67,6 +76,10 @@ const FAQ = [
     a: "Yes — every feature, with no paid tier and no trial. The planner runs entirely in your browser.",
   },
   {
+    q: "I'm an irregular student — cross-year subjects, shifting sections. Will this work?",
+    a: "That's exactly who it's built for. Drop in whatever mix of classes you're actually taking this term, even if they span different years or sections. Use Compare two sections to check a major's offerings against the rest of your schedule before you enroll.",
+  },
+  {
     q: "Do I need an account?",
     a: "No. There is no sign-up and no sign-in. Open the planner and start adding classes.",
   },
@@ -77,6 +90,10 @@ const FAQ = [
   {
     q: "Can I import my Google Calendar?",
     a: "Yes. Export a .ics file from Google Calendar and import it here — weekly recurring events become class blocks on the grid. You can also send your finished schedule back to Google Calendar.",
+  },
+  {
+    q: "My schedule is just a messy text list from the registrar — can I still use it?",
+    a: "Yes. Screenshot or copy the list, paste it into Gemini with the built-in prompt, and Slotly turns it into clean blocks on the grid.",
   },
   {
     q: "Does it work on my phone?",
@@ -92,7 +109,7 @@ const STEPS = [
   {
     n: "1",
     title: "Add your classes",
-    body: "Type in a course, or pull an entire week in from Gemini or a Google Calendar file.",
+    body: "Type them in, or photograph whatever messy list you were given and let Gemini read it for you.",
   },
   {
     n: "2",
@@ -104,7 +121,7 @@ const STEPS = [
   {
     n: "3",
     title: "Take it with you",
-    body: "Export a JPG or PDF, print it, or sync the whole schedule to Google Calendar.",
+    body: "Export a JPG or PDF, print it, or copy a share link for your group chat.",
   },
 ];
 
@@ -301,6 +318,16 @@ function FeatureVisual({ kind }: { kind: string }) {
       </div>
     );
   }
+  if (kind === "compare") {
+    return (
+      <div className="fv-compare" aria-hidden="true">
+        <span className="fv-line">Section A · clashes with 2 of your classes</span>
+        <span className="fv-line">Section A · free 10:30–17:00 Mon, Wed</span>
+        <span className="fv-line">Section B · clashes with 1 of your classes</span>
+        <span className="fv-chip">Section B fits your week better</span>
+      </div>
+    );
+  }
   return (
     <div className="fv-offline" aria-hidden="true">
       <span className="fv-dot-row">
@@ -315,7 +342,7 @@ function FeatureVisual({ kind }: { kind: string }) {
 
 export default function Landing() {
   usePageMeta(
-    "Slotly — The timetable builder for college.",
+    "Slotly — Timetable builder for irregular college students.",
     "index, follow"
   );
 
@@ -364,11 +391,12 @@ export default function Landing() {
             Free · No account needed
           </p>
           <h1 className="lp-hero-title" data-reveal>
-            The timetable builder for college.
+            The timetable builder for irregular students.
           </h1>
           <p className="lp-hero-sub" data-reveal>
-            Lay out your week on a grid, catch clashes before the semester does,
-            and export the result to JPG, PDF, or Google Calendar.
+            Sections, cross-year subjects, schedules that change every term —
+            put them all on one grid, catch the clashes before the registrar
+            does, and take the result with you.
           </p>
           <div className="lp-hero-cta" data-reveal>
             <Link className="lp-btn lp-btn-primary" to="/app">

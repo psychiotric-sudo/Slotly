@@ -20,6 +20,7 @@ interface LeftPanelProps {
   onDuplicateGroup: (courses: CourseEntry[]) => void;
   onExportIcs: () => void;
   onOpenGemini: () => void;
+  onOpenCompare: () => void;
   onRequestBackup: () => void;
   onRequestIcs: () => void;
   onDownloadBackup: () => void;
@@ -38,6 +39,7 @@ export default function LeftPanel({
   onDuplicateGroup,
   onExportIcs,
   onOpenGemini,
+  onOpenCompare,
   onRequestBackup,
   onRequestIcs,
   onDownloadBackup,
@@ -184,6 +186,14 @@ export default function LeftPanel({
         >
           <Icon name="sparkles" size={15} />
           Import from Gemini AI
+        </button>
+        <button
+          type="button"
+          className="btn-ghost integration-btn"
+          onClick={onOpenCompare}
+        >
+          <Icon name="sliders" size={15} />
+          Compare two sections
         </button>
         <a
           className="btn-ghost integration-btn"

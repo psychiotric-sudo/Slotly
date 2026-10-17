@@ -1638,6 +1638,42 @@ transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
   }
 }
 
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-canvas) 55%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.drop-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.drop-overlay-card strong {
+  font-size: 16px;
+}
+
+.drop-overlay-card span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .view-toggle {
   display: flex;
   align-items: center;
@@ -2449,6 +2485,114 @@ textarea.input {
   font-size: 12px;
   line-height: 1.5;
   overflow-x: auto;
+}
+
+/* ---------- Section comparison ---------- */
+.compare-results {
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.compare-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.compare-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--bg-grid-cell);
+}
+
+.compare-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.compare-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.compare-section-head span {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-verdict {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.compare-verdict--bad {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.compare-verdict--good {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.compare-free h4 {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.compare-free-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.compare-free-day {
+  display: flex;
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.compare-free-day:last-child {
+  border-bottom: none;
+}
+
+.compare-free-day-name {
+  flex-shrink: 0;
+  min-width: 70px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.compare-free-day-times {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Toasts ---------- */
