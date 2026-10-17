@@ -6,6 +6,7 @@ import { usePageMeta } from "./hooks/usePageMeta";
 import TopBar from "./components/TopBar";
 import LeftPanel from "./components/LeftPanel";
 import ScheduleCanvas from "./components/ScheduleCanvas";
+import AgendaView from "./components/AgendaView";
 import CourseModal from "./components/CourseModal";
 import DeleteModal from "./components/DeleteModal";
 import SettingsDrawer from "./components/SettingsDrawer";
@@ -93,6 +94,7 @@ export default function App() {
   const [gridZoom, setGridZoom] = useState(1);
   const [fabMenu, setFabMenu] = useState<"import" | "export" | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "agenda">("grid");
 
   const closeFab = () => {
     setFabOpen(false);
@@ -405,7 +407,26 @@ export default function App() {
             />
           )}
           <div className="export-bar">
-              <div className="zoom-controls" role="group" aria-label="Zoom timetable">
+              <div className="view-toggle" role="group" aria-label="Schedule view">
+                <button
+                  type="button"
+                  className={viewMode === "grid" ? "active" : ""}
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setViewMode("grid")}
+                >
+                  Grid
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "agenda" ? "active" : ""}
+                  aria-pressed={viewMode === "agenda"}
+                  onClick={() => setViewMode("agenda")}
+                >
+                  Agenda
+                </button>
+              </div>
+              {viewMode === "grid" && (
+                <div className="zoom-controls" role="group" aria-label="Zoom timetable">
                 <button
                   type="button"
                   className="zoom-btn"
@@ -425,7 +446,8 @@ export default function App() {
                 >
                   +
                 </button>
-              </div>
+                </div>
+              )}
               <button
                 type="button"
                 className="btn-secondary"
@@ -453,6 +475,7 @@ export default function App() {
             ref={scrollRef}
             className="schedule-scroll"
           >
+            {viewMode === "grid" ? (
             <ScheduleCanvas
               courses={courses}
               breaks={breaks}
@@ -472,6 +495,17 @@ export default function App() {
               fontSize={settings.fontSize}
               highlightedCourseIds={highlighted}
             />
+            ) : (
+            <AgendaView
+              courses={courses}
+              breaks={breaks}
+              activeDays={visibleDays}
+              showBreaks={settings.showBreaks}
+              simplifyView={settings.simplifyView}
+              highlightedCourseIds={highlighted}
+              onEdit={openEdit}
+            />
+            )}
           </div>
         </section>
       </main>
