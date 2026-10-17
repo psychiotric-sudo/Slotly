@@ -96,6 +96,7 @@ export default function App() {
     },
     onRestoreBackup: (backup, fileName) =>
       setPendingRestore({ backup, fileName }),
+    onError: (message) => notify({ message, kind: "danger" }),
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -303,6 +304,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#schedule-main">
+        Skip to timetable
+      </a>
       <TopBar
         theme={settings.theme}
         onToggleTheme={() =>
@@ -340,13 +344,14 @@ export default function App() {
             setSidebarOpen(false);
           }}
           onRequestBackup={importers.requestBackup}
+          onError={(message) => notify({ message, kind: "danger" })}
         />
 
         {sidebarOpen && (
           <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
         )}
 
-        <section className="schedule-section">
+        <section className="schedule-section" id="schedule-main" tabIndex={-1}>
           {settings.teacherMode && (
             <TeacherTabs
               tabs={teacherTabs}

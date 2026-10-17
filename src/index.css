@@ -195,6 +195,25 @@ a:hover {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: -100px;
+  z-index: 100;
+  background: var(--accent);
+  color: var(--accent-text-on);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+  text-decoration: none;
+}
+
 .app {
   display: flex;
   flex-direction: column;
@@ -511,6 +530,7 @@ a:hover {
   font-size: 13px;
   line-height: 1.6;
   margin: 0;
+  text-wrap: balance;
 }
 
 /* ---------- Course cards ---------- */
@@ -675,12 +695,16 @@ a:hover {
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  transition: background-color 0.14s ease, color 0.14s ease;
+transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
 }
 
 .icon-btn:hover:not(:disabled) {
   background: var(--bg-grid-cell);
   color: var(--text-primary);
+}
+
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.9);
 }
 
 .icon-btn.danger:hover {
@@ -813,6 +837,13 @@ a:hover {
   opacity: 0.92;
 }
 
+.btn-secondary:active:not(:disabled),
+.btn-ghost:active:not(:disabled),
+.btn-danger-solid:active:not(:disabled) {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
 /* ---------- Schedule section ---------- */
 .schedule-section {
   flex: 1;
@@ -840,6 +871,22 @@ a:hover {
   border: 1px solid var(--border-strong);
   background: var(--grid-bg);
   overflow: visible;
+  position: relative;
+}
+
+.grid-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  font-size: 14px;
+  color: var(--text-tertiary);
+  text-align: center;
+  text-wrap: balance;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .schedule-grid {

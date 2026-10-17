@@ -22,6 +22,7 @@ interface LeftPanelProps {
   onExportIcs: () => void;
   onOpenGemini: () => void;
   onRequestBackup: () => void;
+  onError: (message: string) => void;
 }
 
 export default function LeftPanel({
@@ -38,6 +39,7 @@ export default function LeftPanel({
   onExportIcs,
   onOpenGemini,
   onRequestBackup,
+  onError,
 }: LeftPanelProps) {
   const [query, setQuery] = useState("");
 
@@ -54,7 +56,7 @@ export default function LeftPanel({
   const exportBackup = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      alert("Nothing to export yet.");
+      onError("Nothing to export yet.");
       return;
     }
     const blob = new Blob([raw], { type: "application/json" });

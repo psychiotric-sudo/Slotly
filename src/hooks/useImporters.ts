@@ -6,6 +6,7 @@ import { parseBackup, type RestoredBackup } from "../utils/persistence";
 interface ImporterHandlers {
   onIcsParsed: (courses: CourseEntry[], fileName: string) => void;
   onRestoreBackup: (backup: RestoredBackup, fileName: string) => void;
+  onError: (message: string) => void;
 }
 
 /**
@@ -13,7 +14,7 @@ interface ImporterHandlers {
  * desktop sidebar and the mobile FAB menu so both trigger the same pickers.
  * Parsed .ics data is handed to onIcsParsed — the app decides merge vs replace.
  */
-export function useImporters({ onIcsParsed, onRestoreBackup }: ImporterHandlers) {
+export function useImporters({ onIcsParsed, onRestoreBackup, onError }: ImporterHandlers) {
   const icsRef = useRef<HTMLInputElement>(null);
   const backupRef = useRef<HTMLInputElement>(null);
 
@@ -23,12 +24,12 @@ export function useImporters({ onIcsParsed, onRestoreBackup }: ImporterHandlers)
       try {
         const entries = parseIcs(String(reader.result));
         if (entries.length === 0) {
-          alert("No weekly recurring classes found in that .ics file.");
+          onError("No weekly recurring classes found in that .ics file.");
           return;
         }
         onIcsParsed(entries, file.name);
       } catch {
-        alert("Could not read this .ics file.");
+        onError("Could not read this .ics file.");
       }
     };
     reader.readAsText(file);
@@ -39,7 +40,7 @@ export function useImporters({ onIcsParsed, onRestoreBackup }: ImporterHandlers)
     reader.onload = () => {
       const backup = parseBackup(String(reader.result));
       if (!backup) {
-        alert("This backup file is invalid or from an incompatible version.");
+        onError("This backup file is invalid or from an incompatible version.");
         return;
       }
       onRestoreBackup(backup, file.name);

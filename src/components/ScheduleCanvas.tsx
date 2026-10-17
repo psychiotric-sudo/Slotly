@@ -339,6 +339,12 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
         data-export-root
         style={{ "--grid-font": `${fontSize}px` } as CSSProperties}
       >
+        {courses.length === 0 && (
+          <div className="grid-empty-hint">
+            No classes yet — add one from the panel on the left, or import a
+            schedule.
+          </div>
+        )}
         <div
           className="schedule-grid"
           ref={gridRef}
