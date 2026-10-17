@@ -314,6 +314,8 @@ export default function App() {
         }
         onOpenSettings={() => setShowSettings(true)}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        onAdd={openAdd}
+        sidebarOpen={sidebarOpen}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}

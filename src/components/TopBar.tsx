@@ -6,6 +6,8 @@ interface TopBarProps {
   onToggleTheme: () => void;
   onOpenSettings: () => void;
   onToggleSidebar: () => void;
+  onAdd: () => void;
+  sidebarOpen: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -17,6 +19,8 @@ export default function TopBar({
   onToggleTheme,
   onOpenSettings,
   onToggleSidebar,
+  onAdd,
+  sidebarOpen,
   canUndo,
   canRedo,
   onUndo,
@@ -30,7 +34,9 @@ export default function TopBar({
           className="icon-btn sidebar-toggle"
           onClick={onToggleSidebar}
           aria-label="Toggle course panel"
-          title="Toggle course panel"
+          aria-controls="left-panel"
+          aria-expanded={sidebarOpen}
+          title="Courses"
         >
           <Icon name="menu" size={18} />
         </button>
@@ -57,6 +63,15 @@ export default function TopBar({
       </div>
 
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="btn-primary topbar-add"
+          onClick={onAdd}
+          title="Add a class"
+        >
+          <Icon name="plus" size={14} />
+          Add class
+        </button>
         <button
           type="button"
           className="icon-btn"

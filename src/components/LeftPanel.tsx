@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CourseEntry, ScheduleBreak } from "../types";
 import { DAY_LABELS } from "../types";
 import CourseList from "./CourseList";
@@ -42,6 +42,22 @@ export default function LeftPanel({
   onError,
 }: LeftPanelProps) {
   const [query, setQuery] = useState("");
+  const panelRef = useRef<HTMLElement | null>(null);
+
+  // Keep the closed drawer out of the tab order and the a11y tree.
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.inert = !open;
+  }, [open]);
+
+  // Escape closes the drawer.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseSidebar();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onCloseSidebar]);
 
   const q = query.trim().toLowerCase();
   const filtered = q
@@ -69,7 +85,11 @@ export default function LeftPanel({
   };
 
   return (
-    <aside className={`left-panel${open ? " open" : ""}`}>
+    <aside
+      id="left-panel"
+      ref={panelRef}
+      className={`left-panel${open ? " open" : ""}`}
+    >
       <div className="panel-header">
         <div className="brand-inline">
           <svg
@@ -96,7 +116,14 @@ export default function LeftPanel({
       </div>
 
       <div className="quick-actions">
-        <button type="button" className="btn-primary add-cta" onClick={onAdd}>
+        <button
+          type="button"
+          className="btn-primary add-cta"
+          onClick={() => {
+            onAdd();
+            onCloseSidebar();
+          }}
+        >
           <Icon name="plus" size={16} />
           Add Class
         </button>
