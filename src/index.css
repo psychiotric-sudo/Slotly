@@ -454,6 +454,58 @@ a:hover {
   font-variant-numeric: tabular-nums;
 }
 
+.course-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.course-search:focus-within {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.course-search .course-search__input {
+  border: none;
+  background: transparent;
+  padding: 7px 0;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.course-search .course-search__input:focus {
+  outline: none;
+  border: none;
+}
+
+.course-search__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.course-search__clear {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.course-search__clear:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
 .empty-list {
   color: var(--text-secondary);
   font-size: 13px;
@@ -933,10 +985,46 @@ a:hover {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  position: relative;
   z-index: 1;
   box-shadow: var(--shadow-card);
   transition: filter 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
   animation: blockIn 0.35s ease-out both;
+}
+
+.course-block--dragging {
+  opacity: 0.9;
+  z-index: 6;
+  cursor: grabbing;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.3);
+  transition: none;
+  animation: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.course-block__resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  cursor: ns-resize;
+  background: color-mix(in srgb, currentColor 30%, transparent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.course-block:hover .course-block__resize {
+  opacity: 0.65;
+}
+
+.course-block__resize:hover {
+  opacity: 1 !important;
 }
 
 .course-block:hover {
@@ -2679,4 +2767,61 @@ textarea.input {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
+}
+
+/* ---------- Print ---------- */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .topbar,
+  .left-panel,
+  .fab,
+  .fab-backdrop,
+  .export-bar,
+  .zoom-controls,
+  .app-credit,
+  .toast-stack,
+  .modal-backdrop,
+  .teacher-tabs__action,
+  .teacher-tabs__add,
+  .teacher-tabs__delete,
+  .teacher-tabs__rename,
+  .course-block__resize {
+    display: none !important;
+  }
+
+  .app {
+    height: auto;
+  }
+
+  .app-body {
+    display: block;
+    overflow: visible;
+  }
+
+  .schedule-section {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .schedule-scroll {
+    overflow: visible !important;
+    padding: 0;
+    height: auto;
+    max-height: none;
+  }
+
+  .schedule-canvas,
+  .schedule-grid,
+  .course-block {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .course-block {
+    box-shadow: none;
+  }
 }

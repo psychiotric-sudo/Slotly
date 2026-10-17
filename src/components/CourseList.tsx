@@ -10,15 +10,25 @@ import type { ScheduleBreak } from "../types";
 interface CourseListProps {
   courses: CourseEntry[];
   breaks: ScheduleBreak[];
+  /** Active sidebar search, used for the empty state wording. */
+  query?: string;
   onEdit: (course: CourseEntry) => void;
   onDelete: (course: CourseEntry) => void;
+  onDuplicate?: (course: CourseEntry) => void;
 }
 
 function dayIndex(day: CourseEntry["day"]): number {
   return "MONTUEWEDTHUFRISATSUN".indexOf(day);
 }
 
-export default function CourseList({ courses, breaks, onEdit, onDelete }: CourseListProps) {
+export default function CourseList({
+  courses,
+  breaks,
+  query = "",
+  onEdit,
+  onDelete,
+  onDuplicate,
+}: CourseListProps) {
   const byKey = new Map<string, CourseEntry[]>();
   for (const c of courses) {
     const key = courseGroupKey(c);
@@ -39,7 +49,11 @@ export default function CourseList({ courses, breaks, onEdit, onDelete }: Course
   const sectionFits = findBestSectionFits(courses, breaks);
 
   if (groups.length === 0) {
-    return (
+    return query.trim() ? (
+      <p className="empty-list">
+        Nothing matches “{query.trim()}”. Try a course code, room, or day.
+      </p>
+    ) : (
       <p className="empty-list">
         No classes yet. Hit <strong>Add Class</strong> to schedule your first
         course, or load the demo data.
@@ -135,6 +149,20 @@ export default function CourseList({ courses, breaks, onEdit, onDelete }: Course
               >
                 <Icon name="pencil" size={15} />
               </button>
+              {onDuplicate && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(first);
+                  }}
+                  aria-label={`Duplicate ${group.title}`}
+                  title="Duplicate — copies every day, then drag to a new time"
+                >
+                  <Icon name="file" size={15} />
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-btn danger"

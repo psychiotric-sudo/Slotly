@@ -1,4 +1,11 @@
-import { useMemo, forwardRef, useEffect, useRef, useState } from "react";
+import {
+  useMemo,
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as RPointerEvent,
+} from "react";
 import type { CSSProperties } from "react";
 import type { CourseEntry, ScheduleBreak, SlotMinutes, WeekDay } from "../types";
 import { DAY_LABELS, DAY_SHORT } from "../types";
@@ -9,9 +16,11 @@ import { darkenHex, effectiveColor } from "../utils/colors";
 import {
   bandTimeLabel,
   buildGridRowModel,
+  clamp,
   fitBlockContent,
   formatTime12,
   measureTextWidth,
+  minutesToTime,
   timeToMinutes,
 } from "../utils/time";
 
@@ -23,6 +32,8 @@ interface ScheduleCanvasProps {
   slotMinutes: SlotMinutes;
   activeDays: WeekDay[];
   onEdit: (course: CourseEntry) => void;
+  /** Fired when a block is dragged to a new day/time (or resized). */
+  onMoveCourse?: (course: CourseEntry, day: WeekDay, startTime: string, endTime: string) => void;
   showConflictBadges?: boolean;
   showBreaks?: boolean;
   simplifyView?: boolean;
@@ -44,6 +55,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       slotMinutes,
       activeDays,
       onEdit,
+      onMoveCourse,
       showConflictBadges = true,
       showBreaks = true,
       simplifyView = true,
@@ -197,6 +209,129 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       return { gridRowStart: first + 2, gridRowEnd: last + 3 };
     };
 
+    // ---- Drag to move / resize (pointer based; disabled in simplified view) ----
+    const gridRef = useRef<HTMLDivElement | null>(null);
+    const dragRef = useRef<{
+      id: string;
+      mode: "move" | "resize";
+      grabOffsetPx: number;
+      durationSlots: number;
+      startSlot: number;
+    } | null>(null);
+    const didDragRef = useRef(false);
+    const [dragPreview, setDragPreview] = useState<{
+      courseId: string;
+      day: WeekDay;
+      startTime: string;
+      endTime: string;
+    } | null>(null);
+
+    const dragEnabled = !simplifyView && typeof onMoveCourse === "function";
+    const headerH = Math.min(64 * zoom, 80);
+    const rowH = 40 * zoom;
+
+    const geomFromEvent = (e: { clientX: number; clientY: number }) => {
+      const grid = gridRef.current;
+      if (!grid) return null;
+      const rect = grid.getBoundingClientRect();
+      const relY = e.clientY - rect.top - headerH;
+      const slotF = relY / rowH;
+      const relX = e.clientX - rect.left - timeColWidth;
+      const actualColW = dayCount > 0 ? (rect.width - timeColWidth) / dayCount : colW;
+      const dayIdx = clamp(Math.floor(relX / actualColW), 0, Math.max(0, dayCount - 1));
+      return { slotF, day: activeDays[dayIdx] };
+    };
+
+    const startSlotOf = (c: CourseEntry) =>
+      Math.round((timeToMinutes(c.startTime) - effectiveStartHour * 60) / slotMinutes);
+    const durationSlotsOf = (c: CourseEntry) =>
+      Math.max(
+        1,
+        Math.round(
+          (timeToMinutes(c.endTime) - timeToMinutes(c.startTime)) / slotMinutes
+        )
+      );
+
+    const beginDrag = (
+      e: RPointerEvent,
+      course: CourseEntry,
+      mode: "move" | "resize"
+    ) => {
+      if (!dragEnabled || e.button !== 0) return;
+      const g = geomFromEvent(e);
+      if (!g) return;
+      const startSlot = startSlotOf(course);
+      const grabOffsetPx = mode === "move" ? g.slotF * rowH - startSlot * rowH : 0;
+      dragRef.current = {
+        id: course.id,
+        mode,
+        grabOffsetPx,
+        durationSlots: durationSlotsOf(course),
+        startSlot,
+      };
+      didDragRef.current = false;
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    };
+
+    const onBlockPointerMove = (e: RPointerEvent, course: CourseEntry) => {
+      const d = dragRef.current;
+      if (!d || d.id !== course.id || d.mode !== "move") return;
+      const g = geomFromEvent(e);
+      if (!g) return;
+      didDragRef.current = true;
+      const targetStart = clamp(
+        Math.round((g.slotF * rowH - d.grabOffsetPx) / rowH),
+        0,
+        Math.max(0, totalSlots - d.durationSlots)
+      );
+      const startMin = effectiveStartHour * 60 + targetStart * slotMinutes;
+      const endMin = startMin + d.durationSlots * slotMinutes;
+      setDragPreview({
+        courseId: course.id,
+        day: g.day,
+        startTime: minutesToTime(startMin),
+        endTime: minutesToTime(endMin),
+      });
+    };
+
+    const onBlockPointerUp = (course: CourseEntry) => {
+      const d = dragRef.current;
+      if (d && d.id === course.id && d.mode === "move" && didDragRef.current && dragPreview) {
+        onMoveCourse?.(course, dragPreview.day, dragPreview.startTime, dragPreview.endTime);
+      }
+      dragRef.current = null;
+      setDragPreview(null);
+    };
+
+    const onGripPointerMove = (e: RPointerEvent, course: CourseEntry) => {
+      const d = dragRef.current;
+      if (!d || d.id !== course.id || d.mode !== "resize") return;
+      const g = geomFromEvent(e);
+      if (!g) return;
+      didDragRef.current = true;
+      const endSlot = clamp(
+        Math.round(g.slotF) + 1,
+        d.startSlot + 1,
+        Math.max(d.startSlot + 1, totalSlots)
+      );
+      const endMin = effectiveStartHour * 60 + endSlot * slotMinutes;
+      setDragPreview({
+        courseId: course.id,
+        day: course.day,
+        startTime: course.startTime,
+        endTime: minutesToTime(endMin),
+      });
+    };
+
+    const onGripPointerUp = (course: CourseEntry) => {
+      const d = dragRef.current;
+      if (d && d.id === course.id && d.mode === "resize" && didDragRef.current && dragPreview) {
+        onMoveCourse?.(course, course.day, course.startTime, dragPreview.endTime);
+      }
+      dragRef.current = null;
+      setDragPreview(null);
+    };
+
     return (
       <div
         className="schedule-canvas"
@@ -206,6 +341,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
       >
         <div
           className="schedule-grid"
+          ref={gridRef}
           style={{
             gridTemplateColumns,
             gridTemplateRows,
@@ -312,10 +448,13 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
           {laidOut
             .filter((c) => activeDays.includes(c.day))
             .map((course) => {
-              const { gridRowStart, gridRowEnd } = rowSpanOf(
-                course.startTime,
-                course.endTime
-              );
+              const preview =
+                dragPreview && dragPreview.courseId === course.id ? dragPreview : null;
+              const isDragging = preview !== null;
+              const day = preview?.day ?? course.day;
+              const startTime = preview?.startTime ?? course.startTime;
+              const endTime = preview?.endTime ?? course.endTime;
+              const { gridRowStart, gridRowEnd } = rowSpanOf(startTime, endTime);
               const color = effectiveColor(course);
               const textColor = getAccessibleTextColor(color);
               const conflicting = course.conflictCount > 0 || course.overlapsBreak;
@@ -328,7 +467,7 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
               const lines = [
                 course.title || codeLabel,
                 ...(course.title && course.code ? [codeLabel] : []),
-                `${formatTime12(course.startTime)}–${formatTime12(course.endTime)}`,
+                `${formatTime12(startTime)}–${formatTime12(endTime)}`,
                 ...(course.room || course.instructor
                   ? [[course.instructor, course.room].filter(Boolean).join(" · ")]
                   : []),
@@ -340,18 +479,31 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                   type="button"
                   className={`course-block${conflicting ? " has-conflict" : ""}${
                     highlightedCourseIds?.has(course.id) ? " course-block--highlight" : ""
-                  }${fit.lines.length === 1 ? " course-block--condensed" : ""}`}
+                  }${fit.lines.length === 1 ? " course-block--condensed" : ""}${
+                    isDragging ? " course-block--dragging" : ""
+                  }`}
                   style={{
-                    gridColumn: `${colIndex.get(course.day)} / span 1`,
+                    gridColumn: `${colIndex.get(day)} / span 1`,
                     gridRow: `${gridRowStart} / ${gridRowEnd}`,
                     backgroundColor: color,
                     color: textColor,
                     borderColor: darkenHex(color, 0.28),
                     width: `${course.widthPercent}%`,
                     marginLeft: `${course.leftOffsetPercent}%`,
+                    ...(dragEnabled ? { touchAction: "none" } : null),
                   }}
-                  onClick={() => onEdit(course)}
-                  title={`${course.title || course.code}${course.title && course.code ? ` — ${course.code}` : ""}\n${formatTime12(course.startTime)}–${formatTime12(course.endTime)}`}
+                  onPointerDown={(e) => beginDrag(e, course, "move")}
+                  onPointerMove={(e) => onBlockPointerMove(e, course)}
+                  onPointerUp={() => onBlockPointerUp(course)}
+                  onPointerCancel={() => onBlockPointerUp(course)}
+                  onClick={() => {
+                    if (didDragRef.current) {
+                      didDragRef.current = false;
+                      return;
+                    }
+                    onEdit(course);
+                  }}
+                  title={`${course.title || course.code}${course.title && course.code ? ` — ${course.code}` : ""}\n${formatTime12(startTime)}–${formatTime12(endTime)}`}
                 >
                   {showConflictBadges && conflicting && (
                     <span
@@ -377,6 +529,20 @@ const ScheduleCanvas = forwardRef<HTMLDivElement, ScheduleCanvasProps>(
                       {line}
                     </span>
                   ))}
+                  {dragEnabled && (
+                    <span
+                      className="course-block__resize"
+                      title="Drag to resize"
+                      aria-hidden="true"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        beginDrag(e, course, "resize");
+                      }}
+                      onPointerMove={(e) => onGripPointerMove(e, course)}
+                      onPointerUp={() => onGripPointerUp(course)}
+                      onPointerCancel={() => onGripPointerUp(course)}
+                    />
+                  )}
                 </button>
               );
             })}

@@ -92,42 +92,6 @@ export default function SettingsDrawer({
         </div>
 
         <div className="settings-group">
-          <h3>Theme</h3>
-          <div className="segmented">
-            <button
-              type="button"
-              className={settings.theme === "light" ? "active" : ""}
-              onClick={() => onUpdate({ theme: "light" })}
-            >
-              Light
-            </button>
-            <button
-              type="button"
-              className={settings.theme === "dark" ? "active" : ""}
-              onClick={() => onUpdate({ theme: "dark" })}
-            >
-              Dark
-            </button>
-          </div>
-        </div>
-
-        <div className="settings-group">
-          <h3>Font size</h3>
-          <div className="segmented">
-            {[10, 11, 12, 13, 14].map((size) => (
-              <button
-                key={size}
-                type="button"
-                className={settings.fontSize === size ? "active" : ""}
-                onClick={() => onUpdate({ fontSize: size })}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="settings-group">
           <h3>Week layout</h3>
           <label className="toggle-row">
             <span>Sunday first</span>
@@ -138,6 +102,64 @@ export default function SettingsDrawer({
               onChange={(e) => onUpdate({ sundayFirst: e.target.checked })}
             />
           </label>
+        </div>
+
+        <div className="settings-group">
+          <h3>Teacher mode</h3>
+          <label className="toggle-row">
+            <span>I'm a teacher</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.teacherMode}
+              onChange={(e) => onUpdate({ teacherMode: e.target.checked })}
+            />
+          </label>
+          {settings.teacherMode && (
+            <p className="settings-hint">
+              A tab bar appears above the timetable — add a tab for each section you
+              teach and switch between them. The active tab's name is printed as the
+              title on your exported schedule.
+            </p>
+          )}
+        </div>
+
+        <div className="settings-group">
+          <h3>Display</h3>
+          <div className="field">
+            <span className="field-label">Theme</span>
+            <div className="segmented" role="group" aria-label="Theme">
+              <button
+                type="button"
+                className={settings.theme === "light" ? "active" : ""}
+                onClick={() => onUpdate({ theme: "light" })}
+              >
+                Light
+              </button>
+              <button
+                type="button"
+                className={settings.theme === "dark" ? "active" : ""}
+                onClick={() => onUpdate({ theme: "dark" })}
+              >
+                Dark
+              </button>
+            </div>
+          </div>
+          <div className="field">
+            <span className="field-label">Font size</span>
+            <div className="segmented" role="group" aria-label="Font size">
+              {[10, 11, 12, 13, 14].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  className={settings.fontSize === size ? "active" : ""}
+                  onClick={() => onUpdate({ fontSize: size })}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="toggle-row">
             <span>Conflict badges</span>
             <input
@@ -148,12 +170,12 @@ export default function SettingsDrawer({
             />
           </label>
           <label className="toggle-row">
-            <span>Merged rows (recess / lunch break)</span>
+            <span>Simplify on screen</span>
             <input
               type="checkbox"
               className="toggle"
-              checked={settings.showBreaks}
-              onChange={(e) => onUpdate({ showBreaks: e.target.checked })}
+              checked={settings.simplifyView}
+              onChange={(e) => onUpdate({ simplifyView: e.target.checked })}
             />
           </label>
           <label className="toggle-row">
@@ -167,52 +189,21 @@ export default function SettingsDrawer({
           </label>
         </div>
 
-<div className="settings-group">
-            <h3>Teacher mode</h3>
-            <label className="toggle-row">
-              <span>I'm a teacher</span>
-              <input
-                type="checkbox"
-                className="toggle"
-                checked={settings.teacherMode}
-                onChange={(e) => onUpdate({ teacherMode: e.target.checked })}
-              />
-            </label>
-            {settings.teacherMode && (
-              <p className="settings-hint">
-                Manage multiple class schedules side by side. A tab bar appears above the timetable —
-                add a tab for each section you teach. The active tab's name is printed as the title on
-                your exported schedule.
-              </p>
-            )}
-          </div>
-
         <div className="settings-group">
-          <h3>Simplified grid</h3>
+          <h3>Breaks (recess / lunch)</h3>
           <label className="toggle-row">
-            <span>Simplify on screen</span>
+            <span>Show merged rows on the grid</span>
             <input
               type="checkbox"
               className="toggle"
-              checked={settings.simplifyView}
-              onChange={(e) => onUpdate({ simplifyView: e.target.checked })}
+              checked={settings.showBreaks}
+              onChange={(e) => onUpdate({ showBreaks: e.target.checked })}
             />
           </label>
-          <label className="toggle-row">
-            <span>Simplify when exporting</span>
-            <input
-              type="checkbox"
-              className="toggle"
-              checked={settings.simplifyExport}
-              onChange={(e) => onUpdate({ simplifyExport: e.target.checked })}
-            />
-          </label>
-        </div>
-
-        <div className="settings-group">
-          <h3>Merged rows (breaks)</h3>
           {breaks.length === 0 && (
-            <p className="settings-hint">No breaks yet. Add one below (e.g. RECESS or LUNCH BREAK).</p>
+            <p className="settings-hint">
+              No breaks yet. Add one below (e.g. RECESS or LUNCH BREAK).
+            </p>
           )}
           <ul className="break-list">
             {breaks.map((br) => (
@@ -273,6 +264,19 @@ export default function SettingsDrawer({
               <Icon name="plus" size={14} /> Add
             </button>
           </div>
+        </div>
+
+        <div className="settings-group">
+          <h3>Export</h3>
+          <label className="toggle-row">
+            <span>Simplify when exporting</span>
+            <input
+              type="checkbox"
+              className="toggle"
+              checked={settings.simplifyExport}
+              onChange={(e) => onUpdate({ simplifyExport: e.target.checked })}
+            />
+          </label>
         </div>
 
         <div className="settings-group">

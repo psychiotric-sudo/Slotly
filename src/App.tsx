@@ -36,9 +36,11 @@ export default function App() {
     clearAll,
     loadDemo,
     mergeCourses,
+    duplicateCourses,
     mergeBackup,
     importSchedule,
     saveCourseGroup,
+    updateCourse,
     undo,
     redo,
     updateSettings,
@@ -320,6 +322,7 @@ export default function App() {
             setSidebarOpen(false);
           }}
           onDelete={(course) => setPendingDelete(course)}
+          onDuplicateGroup={duplicateCourses}
           onExportIcs={() => setShowGCalExport(true)}
           onOpenGemini={() => {
             setShowGemini(true);
@@ -410,6 +413,9 @@ export default function App() {
               slotMinutes={settings.slotMinutes}
               activeDays={visibleDays}
               onEdit={openEdit}
+              onMoveCourse={(course, day, startTime, endTime) =>
+                updateCourse({ ...course, day, startTime, endTime, updatedAt: Date.now() })
+              }
               zoom={gridZoom}
               showConflictBadges={settings.showConflictBadges}
               showBreaks={settings.showBreaks}

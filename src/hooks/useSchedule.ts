@@ -306,6 +306,30 @@ export function useSchedule() {
     [pushHistory, setActiveTabCourses, pushToast]
   );
 
+  // Clones course entries as NEW blocks (fresh ids) in one undo step.
+  const duplicateCourses = useCallback(
+    (incoming: CourseEntry[]) => {
+      if (incoming.length === 0) return;
+      pushHistory();
+      const now = Date.now();
+      const copies = incoming.map((c, i) => ({
+        ...c,
+        id: newId(),
+        createdAt: now + i,
+        updatedAt: undefined,
+      }));
+      setActiveTabCourses([...coursesRef.current, ...copies]);
+      pushToast({
+        message:
+          copies.length === 1
+            ? `Duplicated "${copies[0].title || copies[0].code}" — drag it to a new time`
+            : `Duplicated ${copies.length} class blocks — drag them to a new time`,
+        kind: "success",
+      });
+    },
+    [pushHistory, setActiveTabCourses, pushToast]
+  );
+
   const addBreak = useCallback(
     (br: ScheduleBreak) => {
       pushHistory();
@@ -497,6 +521,7 @@ export function useSchedule() {
     loadDemo,
     importCourses,
     mergeCourses,
+    duplicateCourses,
     mergeBackup,
     importSchedule,
     addBreak,

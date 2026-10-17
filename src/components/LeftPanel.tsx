@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { CourseEntry, ScheduleBreak } from "../types";
+import { DAY_LABELS } from "../types";
 import CourseList from "./CourseList";
 import Icon from "./icons";
 import { getAccessibleTextColor } from "../utils/contrast";
+import { courseGroupKey } from "../utils/colors";
 import { GOOGLE_CALENDAR_EXPORT_URL } from "../utils/gcal";
 import { STORAGE_KEY } from "../utils/persistence";
 
@@ -15,6 +18,7 @@ interface LeftPanelProps {
   onClearAll: () => void;
   onEdit: (course: CourseEntry) => void;
   onDelete: (course: CourseEntry) => void;
+  onDuplicateGroup: (courses: CourseEntry[]) => void;
   onExportIcs: () => void;
   onOpenGemini: () => void;
   onRequestBackup: () => void;
@@ -30,10 +34,23 @@ export default function LeftPanel({
   onClearAll,
   onEdit,
   onDelete,
+  onDuplicateGroup,
   onExportIcs,
   onOpenGemini,
   onRequestBackup,
 }: LeftPanelProps) {
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? courses.filter((c) =>
+        [c.title, c.code, c.instructor, c.room, c.section ?? "", DAY_LABELS[c.day]]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      )
+    : courses;
+
   const exportBackup = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -85,10 +102,45 @@ export default function LeftPanel({
 
       <div className="list-header">
         <h2>Course List</h2>
-        <span className="count-badge">{courses.length}</span>
+        <span className="count-badge">{filtered.length}</span>
       </div>
 
-      <CourseList courses={courses} breaks={breaks} onEdit={onEdit} onDelete={onDelete} />
+      {courses.length > 0 && (
+        <div className="course-search">
+          <Icon name="sliders" size={14} aria-hidden="true" />
+          <input
+            type="search"
+            className="input course-search__input"
+            placeholder="Search title, code, room, day…"
+            aria-label="Search classes"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            spellCheck={false}
+          />
+          {query && (
+            <button
+              type="button"
+              className="course-search__clear"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          )}
+        </div>
+      )}
+
+      <CourseList
+        courses={filtered}
+        breaks={breaks}
+        query={query}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onDuplicate={(course) => {
+          const key = courseGroupKey(course);
+          onDuplicateGroup(courses.filter((c) => courseGroupKey(c) === key));
+        }}
+      />
 
       <div className="panel-actions">
         <button type="button" className="btn-ghost" onClick={onLoadDemo}>
