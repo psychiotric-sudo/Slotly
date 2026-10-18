@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import { GEMINI_URL, openGeminiApp } from "../utils/gcal";
 import {
@@ -137,9 +137,9 @@ export default function CompareModal({
           <Icon name="sliders" size={17} />
           {parsed ? "Compare sections" : "Compare two sections"}
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       {parsed ? (
@@ -228,16 +228,16 @@ export default function CompareModal({
               Back
             </button>
             <div className="footer-spacer" />
-            <button type="button" className="btn-primary" data-default-focus onClick={onClose}>
+            <ModalCloseButton className="btn-primary" data-default-focus>
               Done
-            </button>
+            </ModalCloseButton>
           </>
         ) : (
           <>
             <div className="footer-spacer" />
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <ModalCloseButton className="btn-secondary">
               Cancel
-            </button>
+            </ModalCloseButton>
             <button
               type="button"
               className="btn-primary"

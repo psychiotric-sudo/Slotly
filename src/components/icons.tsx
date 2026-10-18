@@ -9,6 +9,7 @@ export type IconName =
   | "sun"
   | "moon"
   | "sliders"
+  | "search"
   | "undo"
   | "redo"
   | "menu"
@@ -74,6 +75,7 @@ const PATHS: Record<IconName, string[]> = {
     "M10 8h4",
     "M18 16h4",
   ],
+  search: ["M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z", "m21 21-4.35-4.35"],
   undo: ["M9 14 4 9l5-5", "M4 9h10a6 6 0 0 1 6 6v6"],
   redo: ["M15 14l5-5-5-5", "M20 9H10a6 6 0 0 0-6 6v6"],
   menu: ["M4 6h16", "M4 12h16", "M4 18h16"],

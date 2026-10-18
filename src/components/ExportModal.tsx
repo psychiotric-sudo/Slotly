@@ -1,4 +1,4 @@
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import ExportThemeEditor from "./ExportThemeEditor";
 import type { ExportTheme } from "../types";
@@ -24,9 +24,9 @@ export default function ExportModal({
     <Modal role="dialog" labelledBy="export-modal-title" onClose={onClose} className="export-modal">
       <header className="modal-header">
         <h2 id="export-modal-title">Export schedule</h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
       <div className="modal-body">
         <p className="settings-hint">
@@ -53,9 +53,9 @@ export default function ExportModal({
         </div>
       </div>
       <footer className="modal-footer">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <ModalCloseButton className="btn-secondary">
           Cancel
-        </button>
+        </ModalCloseButton>
         <div className="footer-spacer" />
         <button
           type="button"

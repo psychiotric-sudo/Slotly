@@ -65,8 +65,13 @@
   --radius-xs: 2px;
 
   /* ----- motion -------------------------------------------------------- */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --dur-micro: 120ms;
+  /* Three easings, three duration buckets. Exits run ~75% of the enter. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* elements entering */
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0); /* elements leaving */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1); /* state toggles */
+  --dur-micro: 120ms; /* press, toggle tick, colour shift */
+  --dur-short: 220ms; /* hover lift, menu open */
+  --dur-long: 420ms; /* modal, drawer, page reveal */
 
   /* ----- z ------------------------------------------------------------- */
   --z-base: 1;

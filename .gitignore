@@ -31,4 +31,5 @@ Thumbs.db
 
 # Design-tool working files (keep .hallmark/log.json tracked)
 .hallmark/shots/
+.hallmark/shots-app/
 .taste-skill/

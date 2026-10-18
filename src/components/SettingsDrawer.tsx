@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import type { ScheduleBreak, ScheduleSettings } from "../types";
 import { validTime, timeToMinutes } from "../utils/time";
@@ -43,9 +43,9 @@ export default function SettingsDrawer({
     <Modal role="dialog" labelledBy="settings-title" onClose={onClose} className="settings-modal">
       <header className="modal-header">
         <h2 id="settings-title">Settings</h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       <div className="modal-body">
@@ -191,6 +191,14 @@ export default function SettingsDrawer({
         </div>
 
         <div className="settings-group">
+          <h3>Colours</h3>
+          <p className="settings-hint">
+            Classes with the same course code share a colour automatically. Open a
+            class and tap “A” in the colour picker to switch that group back to auto.
+          </p>
+        </div>
+
+        <div className="settings-group">
           <h3>Breaks (recess / lunch)</h3>
           <label className="toggle-row">
             <span>Show merged rows on the grid</span>
@@ -322,9 +330,9 @@ export default function SettingsDrawer({
 
       <footer className="modal-footer">
         <div className="footer-spacer" />
-        <button type="button" className="btn-primary" data-default-focus onClick={onClose}>
+        <ModalCloseButton className="btn-primary" data-default-focus>
           Done
-        </button>
+        </ModalCloseButton>
       </footer>
     </Modal>
   );

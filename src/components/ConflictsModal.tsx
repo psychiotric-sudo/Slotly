@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import type { CourseEntry, WeekDay } from "../types";
 import { DAY_LABELS } from "../types";
@@ -85,9 +85,9 @@ export default function ConflictsModal({
           </span>
           {pairs.length} clash{pairs.length === 1 ? "" : "es"}
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       <div className="modal-body conflicts-body">
@@ -150,9 +150,9 @@ export default function ConflictsModal({
 
       <footer className="modal-footer">
         <div className="footer-spacer" />
-        <button type="button" className="btn-primary" data-default-focus onClick={onClose}>
+        <ModalCloseButton className="btn-primary" data-default-focus>
           Done
-        </button>
+        </ModalCloseButton>
       </footer>
     </Modal>
   );

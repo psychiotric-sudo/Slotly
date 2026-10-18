@@ -1,7 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
+import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
 import "./Landing.css";
+
+/** Inline motion index for CSS stagger delays. */
+const stagger = (i: number): CSSProperties =>
+  ({ ["--i" as string]: i } as CSSProperties);
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 const HOURS = ["8:00", "9:00", "10:00", "11:00", "12:00", "1:00", "2:00"];
@@ -113,11 +118,15 @@ function WeekPanel() {
           ))}
         </div>
         <div className="lp-week__blocks">
-          {BLOCKS.map((b) => (
+          {BLOCKS.map((b, index) => (
             <div
               key={`${b.code}-${b.day}-${b.row}`}
               className={`lp-week__block lp-week__block--${b.tone}`}
-              style={{ gridColumn: b.day + 1, gridRow: `${b.row} / span ${b.span}` }}
+              style={{
+                gridColumn: b.day + 1,
+                gridRow: `${b.row} / span ${b.span}`,
+                ...stagger(index),
+              }}
             >
               <strong>{b.code}</strong>
               <span>{b.note}</span>
@@ -134,11 +143,11 @@ function ConflictPanel() {
     <div className="lp-conflict" data-ui aria-hidden="true">
       <span className="lp-conflict__rule lp-conflict__rule--1" />
       <span className="lp-conflict__rule lp-conflict__rule--2" />
-      <div className="lp-conflict__bar lp-conflict__bar--a">
+      <div className="lp-conflict__bar lp-conflict__bar--a" style={stagger(0)}>
         <strong>ENG 105</strong>
         <span>Academic Writing · 10:00–12:00</span>
       </div>
-      <div className="lp-conflict__bar lp-conflict__bar--b">
+      <div className="lp-conflict__bar lp-conflict__bar--b" style={stagger(1)}>
         <strong>HIST 201</strong>
         <span>Modern Europe · 10:30–12:00</span>
       </div>
@@ -150,7 +159,7 @@ function ConflictPanel() {
 function AgendaPanel() {
   return (
     <div className="lp-agenda" data-ui aria-hidden="true">
-      <div className="lp-agenda__day">
+      <div className="lp-agenda__day" style={stagger(0)}>
         <span className="lp-agenda__label">Monday</span>
         <ul>
           <li>
@@ -167,7 +176,7 @@ function AgendaPanel() {
           </li>
         </ul>
       </div>
-      <div className="lp-agenda__day">
+      <div className="lp-agenda__day" style={stagger(1)}>
         <span className="lp-agenda__label">Tuesday</span>
         <ul>
           <li>
@@ -187,27 +196,27 @@ function AgendaPanel() {
 function ComparePanel() {
   return (
     <div className="lp-compare" data-ui aria-hidden="true">
-      <div className="lp-compare__row">
+      <div className="lp-compare__row" style={stagger(0)}>
         <span />
         <span className="lp-compare__head">Section A</span>
         <span className="lp-compare__head">Section B</span>
       </div>
-      <div className="lp-compare__row">
+      <div className="lp-compare__row" style={stagger(1)}>
         <span>Clashes with your classes</span>
         <span>2</span>
         <span>1</span>
       </div>
-      <div className="lp-compare__row">
+      <div className="lp-compare__row" style={stagger(2)}>
         <span>Earliest start</span>
         <span>7:30</span>
         <span>9:00</span>
       </div>
-      <div className="lp-compare__row">
+      <div className="lp-compare__row" style={stagger(3)}>
         <span>Free afternoon on Friday</span>
         <span>No</span>
         <span>Yes</span>
       </div>
-      <div className="lp-compare__row">
+      <div className="lp-compare__row" style={stagger(4)}>
         <span>Fits your week</span>
         <span />
         <span className="lp-compare__pick">Section B</span>
@@ -221,6 +230,8 @@ export default function Landing() {
     "Slotly — The timetable builder for the term you actually have.",
     "index, follow"
   );
+
+  useRevealOnScroll();
 
   // The marketing page is always editorial light; App re-applies the stored
   // theme for the html element when the planner mounts.
@@ -271,16 +282,16 @@ export default function Landing() {
           <div className="lp-wrap">
             <div className="lp-diptych">
               <div className="lp-diptych__copy">
-                <h1 className="lp-display lp-hero__title">
+                <h1 className="lp-display lp-hero__title" style={stagger(0)}>
                   The term you actually have.
                 </h1>
-                <p className="lp-lede lp-hero__lede">
+                <p className="lp-lede lp-hero__lede" style={stagger(1)}>
                   Slotly lays a term of classes onto one weekly grid — the
                   cross-year subject, the two sections you are torn between,
                   the lab that moved to Thursday. Move things until the week
                   reads like something you can live with.
                 </p>
-                <div className="lp-hero__cta">
+                <div className="lp-hero__cta" style={stagger(2)}>
                   <Link className="lp-btn lp-btn--solid" to="/app">
                     Open the planner
                   </Link>
@@ -288,20 +299,22 @@ export default function Landing() {
                     See how it handles clashes
                   </a>
                 </div>
-                <p className="lp-hero__hint">
+                <p className="lp-hero__hint" style={stagger(3)}>
                   No account, no sign-in. Runs in your browser.
                 </p>
               </div>
               <div className="lp-diptych__media">
                 <WeekPanel />
-                <p className="lp-panel-cap">A sample term, laid out on the grid.</p>
+                <p className="lp-panel-cap" style={stagger(2)}>
+                  A sample term, laid out on the grid.
+                </p>
               </div>
             </div>
           </div>
         </section>
 
         {/* ---- Clashes ---- */}
-        <section className="lp-section" id="clashes">
+        <section className="lp-section" id="clashes" data-reveal>
           <div className="lp-wrap">
             <div className="lp-diptych lp-diptych--flip">
               <div className="lp-diptych__copy">
@@ -327,7 +340,7 @@ export default function Landing() {
         </section>
 
         {/* ---- Carry it with you ---- */}
-        <section className="lp-section" id="carry">
+        <section className="lp-section" id="carry" data-reveal>
           <div className="lp-wrap">
             <div className="lp-diptych">
               <div className="lp-diptych__copy">
@@ -352,7 +365,7 @@ export default function Landing() {
         </section>
 
         {/* ---- Compare sections ---- */}
-        <section className="lp-section" id="compare">
+        <section className="lp-section" id="compare" data-reveal>
           <div className="lp-wrap">
             <div className="lp-diptych lp-diptych--flip">
               <div className="lp-diptych__copy">
@@ -377,7 +390,7 @@ export default function Landing() {
         </section>
 
         {/* ---- Photographic plate ---- */}
-        <figure className="lp-plate">
+        <figure className="lp-plate" data-reveal>
           <img
             className="lp-plate__img"
             src="/landing/alexandra-road-campus-c-1890s.jpg"
@@ -393,7 +406,7 @@ export default function Landing() {
         </figure>
 
         {/* ---- Facts ---- */}
-        <section className="lp-section" id="quiet">
+        <section className="lp-section" id="quiet" data-reveal>
           <div className="lp-wrap">
             <ul className="lp-facts">
               {FACTS.map((f) => (
@@ -407,7 +420,7 @@ export default function Landing() {
         </section>
 
         {/* ---- How it works + photo ---- */}
-        <section className="lp-section" id="how">
+        <section className="lp-section" id="how" data-reveal>
           <div className="lp-wrap">
             <div className="lp-diptych">
               <div className="lp-diptych__copy">
@@ -450,7 +463,7 @@ export default function Landing() {
         </section>
 
         {/* ---- Privacy ---- */}
-        <section className="lp-section">
+        <section className="lp-section" data-reveal>
           <div className="lp-wrap">
             <div className="lp-diptych lp-diptych--flip">
               <div className="lp-diptych__copy">
@@ -486,11 +499,11 @@ export default function Landing() {
         </section>
 
         {/* ---- FAQ ---- */}
-        <section className="lp-section" id="faq">
+        <section className="lp-section" id="faq" data-reveal>
           <div className="lp-wrap">
             <dl className="lp-faq">
-              {FAQ.map((item) => (
-                <div className="lp-faq__item" key={item.q}>
+              {FAQ.map((item, index) => (
+                <div className="lp-faq__item" key={item.q} style={stagger(index)}>
                   <dt>{item.q}</dt>
                   <dd>{item.a}</dd>
                 </div>
@@ -500,7 +513,7 @@ export default function Landing() {
         </section>
 
         {/* ---- Closing ---- */}
-        <section className="lp-closing">
+        <section className="lp-closing" data-reveal>
           <div className="lp-wrap">
             <div className="lp-closing__inner">
               <h2 className="lp-display lp-closing__title">

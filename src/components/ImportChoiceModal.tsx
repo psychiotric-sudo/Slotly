@@ -1,4 +1,4 @@
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 
 interface ImportChoiceModalProps {
@@ -31,9 +31,9 @@ export default function ImportChoiceModal({
         <h2 id="import-choice-title">
           <Icon name="upload" size={17} /> Import schedule
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       <div className="modal-body">
@@ -50,9 +50,9 @@ export default function ImportChoiceModal({
       </div>
 
       <footer className="modal-footer">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <ModalCloseButton className="btn-secondary">
           Cancel
-        </button>
+        </ModalCloseButton>
         <button type="button" className="btn-danger-solid" onClick={onReplace}>
           Replace
         </button>

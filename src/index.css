@@ -44,6 +44,14 @@
   --shadow-card-hover: 0 6px 18px -6px rgba(0, 0, 0, 0.5);
   --shadow-rail: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
 
+  /* motion — shared language with tokens.css */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
   --grid-bg: #14161c;
   --cell-bg: #14161c;
   --cell-bg-half: #12141a;
@@ -324,6 +332,9 @@ a:hover {
   display: flex;
   flex: 1;
   min-height: 0;
+  /* Route entrance. Applied to .app-body (not .app) so the fixed panel,
+     FAB, modals and toasts keep the viewport as their containing block. */
+  animation: pageEnter var(--dur-long) var(--ease-out) both;
 }
 
 /* ---------- Footer credit ---------- */
@@ -363,51 +374,110 @@ a:hover {
   min-width: 0;
   z-index: 50;
   transform: translateX(-100%);
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-short) var(--ease-out);
   background: var(--bg-surface);
   border-right: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-rail);
-  padding: var(--space-3);
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  overflow-y: auto;
+  gap: 0;
+  overflow: hidden;
 }
 
 .left-panel.open {
   transform: translateX(0);
 }
 
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-.brand-inline {
+/* Header: title, count, close. No second logo — the app bar already has one. */
+.lp-panel-head {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 16px;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  flex-shrink: 0;
+}
+
+.lp-panel-title {
+  margin: 0;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
-.drawer-close {
+.lp-panel-close {
   display: inline-flex;
+  margin-left: auto;
+}
+
+/* Tools: search, and a compact Add only where the app bar hides its own. */
+.lp-panel-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2);
+  flex-shrink: 0;
+}
+
+.lp-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-3);
+}
+
+.lp-panel-foot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lp-sync {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-sync__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.lp-sync__summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-sync__summary:hover {
+  color: var(--text-primary);
+}
+
+.lp-sync__chev {
+  margin-left: auto;
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+
+.lp-sync[open] .lp-sync__chev {
+  transform: rotate(90deg);
+}
+
+.lp-sync__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
 }
 
 .sidebar-toggle {
   display: inline-flex;
-}
-
-.quick-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .add-cta {
@@ -419,33 +489,19 @@ a:hover {
   box-shadow: var(--shadow-card);
 }
 
+/* Hidden by default; the app bar's Add covers wider screens. */
+.left-panel .lp-panel-add {
+  display: none;
+}
+
 .panel-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border-subtle);
 }
 
 .panel-actions .clear-all {
   margin-left: auto;
-}
-
-.integrations {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.integrations h2 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-tertiary);
-  font-weight: 600;
-  margin: 0 0 var(--space-1);
 }
 
 .integration-btn {
@@ -927,6 +983,7 @@ transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  animation: viewFade var(--dur-short) var(--ease-out);
 }
 
 .agenda--empty {
@@ -1766,7 +1823,12 @@ transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
   justify-content: center;
   padding: var(--space-4);
   z-index: 100;
-  animation: fadeIn 0.16s ease-out;
+  animation: fadeIn var(--dur-short) var(--ease-out);
+}
+
+.modal-backdrop.is-closing {
+  animation: fadeOut calc(var(--dur-long) * 0.75) var(--ease-in) both;
+  pointer-events: none;
 }
 
 .modal {
@@ -1780,7 +1842,11 @@ transition: background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalIn var(--dur-long) var(--ease-out);
+}
+
+.modal.is-closing {
+  animation: modalOut calc(var(--dur-long) * 0.75) var(--ease-in) both;
 }
 
 .modal-header {
@@ -2630,7 +2696,12 @@ textarea.input {
   box-shadow: var(--shadow-modal);
   padding: var(--space-2) var(--space-3);
   font-size: 13px;
-  animation: toastIn 0.22s ease-out;
+  animation: toastIn var(--dur-short) var(--ease-out);
+}
+
+.toast.is-leaving {
+  animation: toastOut calc(var(--dur-short) * 0.75) var(--ease-in) both;
+  pointer-events: none;
 }
 
 .toast-success {
@@ -2695,7 +2766,7 @@ textarea.input {
   inset: 0;
   background: rgba(6, 7, 10, 0.55);
   z-index: 40;
-  animation: fadeIn 0.16s ease-out;
+  animation: fadeIn var(--dur-short) var(--ease-out);
 }
 
 /* ---------- Keyframes ---------- */
@@ -2769,6 +2840,60 @@ textarea.input {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+/* Route change — one orchestrated entrance per page. */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* View swap (grid ⇄ agenda) — opacity only, so it never touches the
+   inline zoom transform on the schedule canvas. */
+@keyframes viewFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -3053,7 +3178,7 @@ textarea.input {
     inset: 0;
     background: rgba(6, 7, 10, 0.35);
     z-index: 70;
-    animation: fadeIn 0.14s ease-out;
+    animation: fadeIn var(--dur-micro) var(--ease-out);
   }
 
   .fab-menu {
@@ -3069,14 +3194,14 @@ textarea.input {
     box-shadow: var(--shadow-modal);
     padding: var(--space-2);
     z-index: 71;
-    animation: fabMenuIn 0.16s ease-out;
+    animation: fabMenuIn var(--dur-short) var(--ease-out);
   }
 
   .fab-menu-sub {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    animation: fabMenuIn 0.16s ease-out;
+    animation: fabMenuIn var(--dur-short) var(--ease-out);
   }
 
   .fab-menu-back {
@@ -3149,10 +3274,9 @@ textarea.input {
     color: var(--danger);
   }
 
-  /* Actions move into the FAB menu on tablets/phones */
-  .left-panel .quick-actions,
-  .left-panel .integrations,
-  .left-panel .panel-actions {
+  /* Import/sync and bulk actions live in the FAB menu on tablets/phones,
+     so the whole footer (and its top rule) is hidden there. */
+  .left-panel .lp-panel-foot {
     display: none;
   }
 }
@@ -3164,6 +3288,11 @@ textarea.input {
 
   .topbar-add {
     display: none;
+  }
+
+  /* The app bar's Add is gone here, so the panel carries one. */
+  .left-panel .lp-panel-add {
+    display: inline-flex;
   }
 
   .topbar {
@@ -3209,6 +3338,7 @@ textarea.input {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

@@ -1,3 +1,4 @@
 [
-  { "date": "2026-10-18", "macrostructure": "Split Studio", "theme": "Newsprint", "enrichment": "Tier-A CSS-art interface panels", "brief": "Slotly — editorial landing page for a browser-only college timetable builder" }
+  { "date": "2026-10-18", "macrostructure": "Split Studio", "theme": "Newsprint", "enrichment": "Tier-A CSS-art interface panels", "brief": "Slotly — editorial landing page for a browser-only college timetable builder" },
+  { "date": "2026-10-18", "scope": "motion + /app declutter", "theme": "Newsprint (landing) / app shell", "motion": "route page-enter, hero + week-block stagger, reveal-once on scroll, modal/toast/view exit + tokens", "enrichment": "LeftPanel restructured: title header, tools, scrolling list, Import & sync disclosure, footer actions", "brief": "Route transitions landing⟷/app⟷/s, app motion layer, and an anti-slop declutter of the planner panel" }
 ]

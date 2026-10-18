@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CourseEntry, CourseFormResult, WeekDay } from "../types";
 import { DAY_LABELS, DAY_SHORT, WEEK_DAYS } from "../types";
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import TimePicker from "./TimePicker";
 import { findConflicts } from "../utils/conflicts";
@@ -178,9 +178,9 @@ export default function CourseModal({
       <form onSubmit={handleSubmit} noValidate>
         <header className="modal-header">
           <h2 id="course-modal-title">{editing ? "Edit Class" : "Add Class"}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <ModalCloseButton className="icon-btn" aria-label="Close">
             <Icon name="x" />
-          </button>
+          </ModalCloseButton>
         </header>
 
         <div className="modal-body">
@@ -400,9 +400,9 @@ export default function CourseModal({
             </button>
           )}
           <div className="footer-spacer" />
-          <button type="button" className="btn-secondary" onClick={onClose}>
+          <ModalCloseButton className="btn-secondary">
             Cancel
-          </button>
+          </ModalCloseButton>
           <button
             type="submit"
             className="btn-primary"

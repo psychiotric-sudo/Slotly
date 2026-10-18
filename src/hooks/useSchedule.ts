@@ -55,6 +55,15 @@ export function useSchedule() {
     [safeTabs, activeId]
   );
 
+  // First run with no stored workspace: materialise the solo tab into state so
+  // mutations (add class, load demo, import) have a real tab to write into.
+  // `safeTabs` can only *read* a synthetic tab, so every write would be a no-op.
+  useEffect(() => {
+    if (tabs.length === 0) {
+      setTabs([{ id: "tab-solo", name: "My Schedule", courses: [], breaks: [] }]);
+    }
+  }, [tabs.length]);
+
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastIdRef = useRef(0);
 

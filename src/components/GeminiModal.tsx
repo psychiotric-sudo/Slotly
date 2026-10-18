@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 import { GEMINI_PROMPT, parseGeminiJson, type GeminiParseResult } from "../utils/gemini";
 import { GEMINI_URL, openGeminiApp } from "../utils/gcal";
@@ -77,9 +77,9 @@ export default function GeminiModal({
           <Icon name="sparkles" size={17} />
           {parsed ? "Import from Gemini" : "Import with Gemini AI"}
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       {parsed ? (
@@ -195,9 +195,9 @@ export default function GeminiModal({
         ) : (
           <>
             <div className="footer-spacer" />
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <ModalCloseButton className="btn-secondary">
               Cancel
-            </button>
+            </ModalCloseButton>
             <button
               type="button"
               className="btn-primary"

@@ -160,7 +160,8 @@ body {
   border: var(--rule-hair) solid var(--color-ink);
   border-radius: var(--radius-xs);
   transition: background-color var(--dur-micro) var(--ease-out),
-    color var(--dur-micro) var(--ease-out);
+    color var(--dur-micro) var(--ease-out),
+    transform var(--dur-micro) var(--ease-out);
 }
 
 .lp-btn:hover {
@@ -171,6 +172,7 @@ body {
 .lp-btn:active {
   background: var(--color-ink-2);
   border-color: var(--color-ink-2);
+  transform: translateY(1px);
 }
 
 .lp-btn--solid {
@@ -966,7 +968,92 @@ body {
 }
 
 /* ==================================================================== *
- * 15. Reduced motion
+ * 15. Motion — one page entrance, a hero stagger, reveal-once on scroll
+ * ==================================================================== */
+
+/* Page entrance — also the landing side of the route transition. */
+.landing {
+  animation: lp-page-enter var(--dur-long) var(--ease-out) both;
+}
+
+@keyframes lp-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Hero orchestration: stagger the copy blocks by index (set inline as --i),
+   capped well under Hallmark's ~500ms budget. */
+.lp-hero__title,
+.lp-hero__lede,
+.lp-hero__cta,
+.lp-hero__hint,
+.lp-panel-cap {
+  animation: lp-rise var(--dur-long) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+@keyframes lp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The sample week fills in, block by block. */
+.lp-week__block {
+  animation: lp-reveal var(--dur-short) var(--ease-out) both;
+  animation-delay: calc(180ms + var(--i, 0) * 30ms);
+}
+
+/* Reveal-once on scroll (driven by useRevealOnScroll). */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+[data-reveal].is-visible {
+  animation: lp-reveal var(--dur-long) var(--ease-out) both;
+}
+
+@keyframes lp-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Child staggers, kicked off when their section reveals. */
+[data-reveal] .lp-conflict__bar,
+[data-reveal] .lp-agenda__day,
+[data-reveal] .lp-compare__row,
+[data-reveal] .lp-faq__item {
+  opacity: 0;
+}
+
+[data-reveal].is-visible .lp-conflict__bar,
+[data-reveal].is-visible .lp-agenda__day,
+[data-reveal].is-visible .lp-compare__row,
+[data-reveal].is-visible .lp-faq__item {
+  animation: lp-reveal var(--dur-short) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* ==================================================================== *
+ * 16. Reduced motion
  * ==================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
@@ -974,5 +1061,16 @@ body {
   .landing *::before,
   .landing *::after {
     transition: none !important;
+  }
+
+  /* Anything held hidden for a reveal is shown at once. */
+  [data-reveal],
+  [data-reveal] .lp-week__block,
+  [data-reveal] .lp-conflict__bar,
+  [data-reveal] .lp-agenda__day,
+  [data-reveal] .lp-compare__row,
+  [data-reveal] .lp-faq__item {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

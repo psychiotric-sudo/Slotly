@@ -1,4 +1,4 @@
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 
 interface RestoreModalProps {
@@ -31,9 +31,9 @@ export default function RestoreModal({
         <h2 id="restore-title">
           <Icon name="upload" size={17} /> Restore backup
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       <div className="modal-body">
@@ -52,9 +52,9 @@ export default function RestoreModal({
       </div>
 
       <footer className="modal-footer">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <ModalCloseButton className="btn-secondary">
           Cancel
-        </button>
+        </ModalCloseButton>
         <button type="button" className="btn-danger-solid" onClick={onReplace}>
           Replace
         </button>

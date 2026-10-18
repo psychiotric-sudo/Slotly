@@ -1,4 +1,4 @@
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 
 interface DeleteModalProps {
   title: string;
@@ -21,9 +21,9 @@ export default function DeleteModal({ title, onConfirm, onClose }: DeleteModalPr
       </p>
       <div className="modal-footer">
         <div className="footer-spacer" />
-        <button type="button" className="btn-ghost" data-default-focus onClick={onClose}>
+        <ModalCloseButton className="btn-ghost" data-default-focus>
           Cancel
-        </button>
+        </ModalCloseButton>
         <button type="button" className="btn-danger-solid" onClick={onConfirm}>
           Delete
         </button>

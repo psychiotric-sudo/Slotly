@@ -1,4 +1,31 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
+
+/** Matches the exit animation (var(--dur-long) * 0.75) in index.css. */
+const EXIT_MS = 315;
+
+const ModalCloseContext = createContext<() => void>(() => {});
+
+/**
+ * A button that asks the enclosing <Modal> to play its exit animation and close.
+ * Must be rendered *inside* <Modal> — the close handler travels via context, so a
+ * parent component that renders <Modal> cannot call it directly.
+ */
+export function ModalCloseButton({
+  type = "button",
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const close = useContext(ModalCloseContext);
+  return <button type={type} {...rest} onClick={close} />;
+}
 
 interface ModalProps {
   role?: "dialog" | "alertdialog";
@@ -17,6 +44,21 @@ export default function Modal({
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<Element | null>(null);
+  const closingRef = useRef(false);
+  const [closing, setClosing] = useState(false);
+
+  // Play an exit animation, then hand control back to the owner.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!closing) return;
+    const timer = window.setTimeout(() => onClose(), EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [closing, onClose]);
 
   useEffect(() => {
     previouslyFocused.current = document.activeElement;
@@ -45,7 +87,7 @@ export default function Modal({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        requestClose();
         return;
       }
       if (e.key !== "Tab" || !dialogRef.current) return;
@@ -71,20 +113,26 @@ export default function Modal({
 
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [onClose]);
+  }, [requestClose]);
 
   return (
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop${closing ? " is-closing" : ""}`}
       role={role}
       aria-modal="true"
       aria-labelledby={labelledBy}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
-      <div ref={dialogRef} className={`modal ${className}`} role="presentation">
-        {children}
+      <div
+        ref={dialogRef}
+        className={`modal ${className}${closing ? " is-closing" : ""}`}
+        role="presentation"
+      >
+        <ModalCloseContext.Provider value={requestClose}>
+          {children}
+        </ModalCloseContext.Provider>
       </div>
     </div>
   );

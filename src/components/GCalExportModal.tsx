@@ -1,4 +1,4 @@
-import Modal from "./Modal";
+import Modal, { ModalCloseButton } from "./Modal";
 import Icon from "./icons";
 
 interface GCalExportModalProps {
@@ -13,9 +13,9 @@ export default function GCalExportModal({ onDownload, onClose }: GCalExportModal
         <h2 id="gcal-export-title">
           <Icon name="calendar" size={17} /> Export to Google Calendar
         </h2>
-        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+        <ModalCloseButton className="icon-btn" aria-label="Close">
           <Icon name="x" />
-        </button>
+        </ModalCloseButton>
       </header>
 
       <div className="modal-body">
@@ -41,9 +41,9 @@ export default function GCalExportModal({ onDownload, onClose }: GCalExportModal
 
       <footer className="modal-footer">
         <div className="footer-spacer" />
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <ModalCloseButton className="btn-secondary">
           Cancel
-        </button>
+        </ModalCloseButton>
         <button type="button" className="btn-primary" data-default-focus onClick={onDownload}>
           <Icon name="download" size={16} /> Download &amp; redirect
         </button>
