@@ -2,7 +2,16 @@ import { useEffect, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
 import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
+import SiteHeader from "../components/SiteHeader";
+import SiteFooter from "../components/SiteFooter";
 import "./Landing.css";
+
+const NAV = [
+  { href: "#grid", label: "The grid" },
+  { href: "#clashes", label: "Clashes" },
+  { href: "#carry", label: "Export" },
+  { href: "#faq", label: "Questions" },
+];
 
 /** Inline motion index for CSS stagger delays. */
 const stagger = (i: number): CSSProperties =>
@@ -245,36 +254,7 @@ export default function Landing() {
 
   return (
     <div className="landing">
-      <header className="lp-masthead">
-        <div className="lp-wrap">
-          <div className="lp-masthead__inner">
-            <p className="lp-masthead__issue">The weekly planner · No. 1</p>
-            <a className="lp-masthead__wordmark" href="#top" aria-label="Slotly, back to top">
-              Slotly
-            </a>
-            <p className="lp-masthead__tagline">
-              For the term that doesn&rsquo;t fit the usual shape
-            </p>
-            <nav className="lp-masthead__nav" aria-label="Page sections">
-              <a className="lp-masthead__link" href="#grid">
-                The grid
-              </a>
-              <a className="lp-masthead__link" href="#clashes">
-                Clashes
-              </a>
-              <a className="lp-masthead__link" href="#carry">
-                Export
-              </a>
-              <a className="lp-masthead__link" href="#faq">
-                Questions
-              </a>
-              <Link className="lp-btn lp-masthead__cta" to="/app">
-                Open the planner
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <SiteHeader nav={NAV} />
 
       <main id="top">
         {/* ---- Hero diptych ---- */}
@@ -527,64 +507,7 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="lp-colophon">
-        <div className="lp-wrap">
-          <div className="lp-colophon__grid">
-            <div className="lp-colophon__col">
-              <span className="lp-colophon__brand">Slotly</span>
-              <p>
-                A free, browser-only timetable builder for a term that does not
-                fit the usual shape.
-              </p>
-            </div>
-            <div className="lp-colophon__col">
-              <h2>Pages</h2>
-              <ul>
-                <li>
-                  <a href="#grid">The grid</a>
-                </li>
-                <li>
-                  <a href="#clashes">Clashes</a>
-                </li>
-                <li>
-                  <a href="#carry">Export</a>
-                </li>
-                <li>
-                  <a href="#faq">Questions</a>
-                </li>
-              </ul>
-            </div>
-            <div className="lp-colophon__col">
-              <h2>Photographs</h2>
-              <p>
-                Alexandra Road campus, c. 1890s — Swansea Metropolitan
-                University archive (CC BY-SA 3.0).
-              </p>
-              <p>
-                Ohio University lecture hall — Garden Sprite (CC0). Sias
-                University library, 2017 — Gary Todd (CC0).
-              </p>
-            </div>
-            <div className="lp-colophon__col">
-              <h2>Type &amp; build</h2>
-              <p>
-                Set in Fraunces and Newsreader. Built with React and Vite.
-                Timetables rendered and exported entirely in the browser.
-              </p>
-            </div>
-          </div>
-          <div className="lp-colophon__fine">
-            <span>© 2026 Slotly. Made for whoever is holding the mess.</span>
-            <span>
-              Built by{" "}
-              <a href="https://t.me/drnx64" target="_blank" rel="noopener noreferrer">
-                @drnx64
-              </a>
-            </span>
-            <Link to="/app">Open the planner</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,0 +1,165 @@
+/* Hallmark · document pages (privacy, terms, contact)
+ * Reuses the landing's Newsprint tokens (via Landing.css → tokens.css) and
+ * adds prose styling. No new palette, no gradients, no card borders — the
+ * same hairlines, measure and Fraunces/Newsreader pairing as the landing.
+ */
+
+.legal {
+  padding-bottom: var(--space-3xl);
+}
+
+.legal__head {
+  padding-block: clamp(2.5rem, 6vw, var(--space-2xl)) var(--space-lg);
+  border-bottom: var(--rule-thick) double var(--color-rule-strong);
+}
+
+.legal__kicker {
+  font-size: var(--text-sm);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.legal__title {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  max-width: 20ch;
+}
+
+.legal__meta {
+  margin-top: var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.legal__body {
+  padding-block: clamp(2.5rem, 6vw, var(--space-2xl));
+}
+
+.legal__lede {
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  max-width: var(--measure);
+}
+
+.legal__prose {
+  margin-top: var(--space-2xl);
+  max-width: var(--measure);
+}
+
+.legal__prose h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+  margin-top: var(--space-2xl);
+}
+
+.legal__prose h2:first-child {
+  margin-top: 0;
+}
+
+.legal__prose h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin-top: var(--space-xl);
+}
+
+.legal__prose p,
+.legal__prose li {
+  font-size: var(--text-base);
+  line-height: 1.62;
+  color: var(--color-ink-2);
+}
+
+.legal__prose p {
+  margin-top: var(--space-md);
+}
+
+.legal__prose ul,
+.legal__prose ol {
+  margin-top: var(--space-md);
+  padding-left: 1.4em;
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.legal__prose ul {
+  list-style: disc;
+}
+
+.legal__prose ol {
+  list-style: decimal;
+}
+
+.legal__prose li::marker {
+  color: var(--color-rule-strong);
+}
+
+.legal__prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.legal__prose code {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  color: var(--color-ink);
+  background: var(--color-paper-2);
+  padding: 0.05em 0.35em;
+  border-radius: var(--radius-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Links in prose must beat the `.landing a` reset (same specificity, later
+   sheet) — scoped to `.legal__prose` so the reset stays intact elsewhere. */
+.landing .legal__prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--dur-micro) var(--ease-out);
+  overflow-wrap: anywhere;
+}
+
+.landing .legal__prose a:hover {
+  color: var(--color-ink);
+}
+
+/* Hairline "what is stored where" list, used on the privacy page. */
+.legal__defs {
+  margin-top: var(--space-lg);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.legal__defs > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2xs);
+  padding-block: var(--space-md);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.legal__defs dt {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.legal__defs dd {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--color-ink-2);
+  overflow-wrap: anywhere;
+}
+
+

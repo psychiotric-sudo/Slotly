@@ -62,12 +62,12 @@ Everything lives in your browser's `localStorage` under the key `schedule_v1` (s
 
 ## SEO / Search Console / Deployment Checklist
 
-The repo ships with SEO scaffolding pointed at `https://slotly-timetable.vercel.app/`. If you deploy elsewhere, update the domain in:
+The repo ships with SEO scaffolding pointed at `https://slotly-timetables.vercel.app/`. If you deploy elsewhere, update the domain in:
 
-1. **Set your real domain** — search for `slotly-timetable.vercel.app` and replace it in:
+1. **Set your real domain** — search for `slotly-timetables.vercel.app` and replace it in:
    - `index.html` (canonical, Open Graph, Twitter, JSON-LD)
    - `public/robots.txt`
-   - `public/sitemap.xml`
+   - `public/sitemap.xml` (home, plus `/privacy`, `/terms`, `/contact`)
 2. **Google Search Console** — add your site, verify it (DNS or HTML file), then paste the provided `<meta name="google-site-verification" ...>` tag into `<head>` of `index.html` (a commented placeholder is already there).
 3. **Submit your sitemap** — in Search Console → Sitemaps, submit `https://yourdomain.com/sitemap.xml`.
 4. **Open Graph image** — `public/og-image.png` (1200×630) is included; replace it if you want a custom preview card.
@@ -75,4 +75,6 @@ The repo ships with SEO scaffolding pointed at `https://slotly-timetable.vercel.
 
 ## License
 
-Private project. All rights reserved unless otherwise stated.
+The source code is released under the [MIT License](LICENSE). The Slotly
+name, logo, written copy, and visual design are the project's own and are not
+granted by the MIT license.

@@ -12,6 +12,9 @@ import "./index.css";
 const App = lazy(() => import("./App"));
 const Landing = lazy(() => import("./pages/Landing"));
 const Share = lazy(() => import("./pages/Share"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Contact = lazy(() => import("./pages/Contact"));
 
 /** Reset scroll on route change (unless the URL carries a hash anchor). */
 function ScrollToTop() {
@@ -39,6 +42,9 @@ createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Landing />} />
           <Route path="/app" element={<App />} />
           <Route path="/s/:payload" element={<Share />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

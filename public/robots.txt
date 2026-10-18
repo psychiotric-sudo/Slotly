@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /app
 Disallow: /s/
 
-Sitemap: https://slotly-timetable.vercel.app/sitemap.xml
+Sitemap: https://slotly-timetables.vercel.app/sitemap.xml
