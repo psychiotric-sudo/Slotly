@@ -1,83 +1,61 @@
-import { useEffect, useRef } from "react";
-import type { CSSProperties } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePageMeta } from "../hooks/usePageMeta";
 import "./Landing.css";
 
-const FEATURES = [
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const HOURS = ["8:00", "9:00", "10:00", "11:00", "12:00", "1:00", "2:00"];
+
+type Block = {
+  day: number;
+  row: number;
+  span: number;
+  tone: "blue" | "green" | "amber" | "rose";
+  code: string;
+  note: string;
+};
+
+const BLOCKS: Block[] = [
+  { day: 1, row: 2, span: 2, tone: "blue", code: "CS 301", note: "Operating Systems" },
+  { day: 1, row: 4, span: 1, tone: "green", code: "MATH 214", note: "Linear Algebra" },
+  { day: 1, row: 6, span: 1, tone: "green", code: "PHYS 112", note: "Mechanics" },
+  { day: 2, row: 3, span: 2, tone: "amber", code: "ENG 105", note: "Academic Writing" },
+  { day: 2, row: 7, span: 1, tone: "blue", code: "CS 301", note: "Lab · B-210" },
+  { day: 3, row: 2, span: 2, tone: "rose", code: "HIST 201", note: "Modern Europe" },
+  { day: 3, row: 4, span: 1, tone: "green", code: "MATH 214", note: "Tutorial" },
+  { day: 4, row: 2, span: 2, tone: "amber", code: "ENG 105", note: "Seminar" },
+  { day: 4, row: 5, span: 1, tone: "green", code: "PHYS 112", note: "Lab · S-12" },
+  { day: 5, row: 4, span: 2, tone: "blue", code: "CS 301", note: "Project studio" },
+];
+
+const FACTS = [
+  { head: "Free, complete", body: "Every feature, no paid tier, no trial timer." },
+  { head: "No account", body: "There is nothing to sign up for and nothing to sign in to." },
+  { head: "Your device only", body: "The timetable is stored in your browser, not on a server." },
+  { head: "JPG · PDF · .ics", body: "Export, print, or copy a share link for the group chat." },
+];
+
+const STEPS = [
   {
-    id: "drag",
-    span: 4,
-    tag: "Editing",
-    tagTone: "blue",
-    title: "Drag to move, drag edges to resize",
-    body: "Grab a class block and drop it anywhere on the grid. Stretch its edge to make it longer — it snaps to your slot size.",
-    visual: "drag",
+    title: "Put the term in",
+    body: "Add classes by hand, or paste the messy list the registrar handed you and let Gemini read it into clean blocks.",
   },
   {
-    id: "clash",
-    span: 2,
-    tag: "Conflicts",
-    tagTone: "red",
-    title: "Clashes, caught early",
-    body: "Two classes in the same slot get flagged with the exact overlap time.",
-    visual: "clash",
+    title: "Arrange until it fits",
+    body: "Drag a block to move it, pull an edge to make it longer. Move one class and the rest of the week re-settles around it.",
+    kbd: ["Ctrl", "Z"],
+    kbdNote: "Undo, and redo, everything.",
   },
   {
-    id: "import",
-    span: 2,
-    tag: "Import",
-    tagTone: "green",
-    title: "Import in seconds",
-    body: "Paste a Gemini export or drop a .ics file from Google Calendar. Merge or replace — you choose.",
-    visual: "import",
+    title: "Take it with you",
+    body: "Export a JPG for the group chat, a PDF for the wall, a .ics for your calendar — or copy a link that reopens the whole week.",
   },
-  {
-    id: "export",
-    span: 2,
-    tag: "Export",
-    tagTone: "yellow",
-    title: "Take it anywhere",
-    body: "JPG for the group chat, PDF for printing, .ics for Google Calendar.",
-    visual: "export",
-  },
-  {
-    id: "teacher",
-    span: 2,
-    tag: "Teacher mode",
-    tagTone: "blue",
-    title: "One tab per section",
-    body: "Keep a schedule for every section you teach and switch with a click.",
-    visual: "tabs",
-  },
-  {
-    id: "compare",
-    span: 6,
-    tag: "Sections",
-    tagTone: "green",
-    title: "Choosing between two sections?",
-    body: "Snap both section schedules, let Gemini read them, and see each section's vacant windows and how many of your classes it clashes with — before you enroll.",
-    visual: "compare",
-  },
-  {
-    id: "offline",
-    span: 6,
-    tag: "Privacy",
-    tagTone: "green",
-    title: "Your schedule never leaves your device",
-    body: "Everything is stored in your browser. No account, no sign-in, no server holding your timetable. Download a JSON backup whenever you want a copy.",
-    visual: "offline",
-  },
-] as const;
+];
 
 const FAQ = [
   {
     q: "Is Slotly free?",
-    a: "Yes — every feature, with no paid tier and no trial. The planner runs entirely in your browser.",
-  },
-  {
-    q: "I'm an irregular student — cross-year subjects, shifting sections. Will this work?",
-    a: "That's exactly who it's built for. Drop in whatever mix of classes you're actually taking this term, even if they span different years or sections. Use Compare two sections to check a major's offerings against the rest of your schedule before you enroll.",
+    a: "Yes. Every feature is available with no paid tier and no trial. The planner runs entirely in your browser.",
   },
   {
     q: "Do I need an account?",
@@ -85,264 +63,162 @@ const FAQ = [
   },
   {
     q: "Where is my data stored?",
-    a: "In your browser's local storage, on your device. Nothing is uploaded. Use Download backup to keep a JSON copy you can restore later — even on another device.",
+    a: "In your browser's local storage, on your device. Nothing is uploaded. Download a JSON backup whenever you want a copy you can restore later, even on another machine.",
+  },
+  {
+    q: "My classes start at odd times and keep changing — will it cope?",
+    a: "That is the whole point. Slot size, day range, and starting hour are all yours to set, so a week made of half-hours, evening labs, and a slot that moved in week four still fits on one grid.",
+  },
+  {
+    q: "I'm taking subjects across different years. Can I put them together?",
+    a: "Yes. Drop in whatever mix of classes you actually have this term, even when they come from different years or different sections. Nothing expects you to be on one tidy track.",
   },
   {
     q: "Can I import my Google Calendar?",
-    a: "Yes. Export a .ics file from Google Calendar and import it here — weekly recurring events become class blocks on the grid. You can also send your finished schedule back to Google Calendar.",
+    a: "Yes. Export a .ics file from Google Calendar and import it here — weekly recurring events become class blocks on the grid. You can send the finished schedule back the same way.",
   },
   {
-    q: "My schedule is just a messy text list from the registrar — can I still use it?",
-    a: "Yes. Screenshot or copy the list, paste it into Gemini with the built-in prompt, and Slotly turns it into clean blocks on the grid.",
+    q: "My schedule is just a wall of text. Can I still use it?",
+    a: "Screenshot or copy the list, paste it into Gemini with the built-in prompt, and Slotly turns it into blocks on the grid.",
   },
   {
     q: "Does it work on my phone?",
-    a: "Yes. The grid pinch-zooms, the quick-actions button covers add, import, and export, and a Fit all days setting squeezes the whole week onto a small screen.",
-  },
-  {
-    q: "I teach several sections — can I keep them separate?",
-    a: "Turn on Teacher mode in Settings. A tab bar appears above the timetable: one tab per section, each with its own classes and breaks. The active tab's name prints on exports.",
+    a: "Yes. The grid pinch-zooms, a quick-actions button covers add, import, and export, and a Fit all days setting squeezes the whole week onto a small screen.",
   },
 ];
 
-const STEPS = [
-  {
-    n: "1",
-    title: "Add your classes",
-    body: "Type them in, or photograph whatever messy list you were given and let Gemini read it for you.",
-  },
-  {
-    n: "2",
-    title: "Arrange until it fits",
-    body: "Drag blocks around until the week works.",
-    kbd: ["Ctrl", "Z", "Ctrl", "Shift", "Z"],
-    kbdNote: "Undo and redo anything.",
-  },
-  {
-    n: "3",
-    title: "Take it with you",
-    body: "Export a JPG or PDF, print it, or copy a share link for your group chat.",
-  },
-];
-
-/** Reveal-on-scroll for every [data-reveal] element inside the landing page. */
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const targets = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
-    if (typeof IntersectionObserver === "undefined") {
-      targets.forEach((t) => t.classList.add("is-visible"));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-            io.unobserve(entry.target);
-          }
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
-    );
-    targets.forEach((t) => io.observe(t));
-    return () => io.disconnect();
-  }, []);
-
-  return ref;
-}
-
-function ShotGrid() {
+function WeekPanel() {
   return (
-    <div
-      className="shot"
-      role="img"
-      aria-label="The Slotly planner: a weekly timetable with class blocks, a lunch break, and a flagged clash"
-    >
-      <div className="shot-chrome" aria-hidden="true">
-        <span className="shot-dot" />
-        <span className="shot-dot" />
-        <span className="shot-dot" />
-        <span className="shot-chrome-title">Slotly — Fall semester</span>
-      </div>
-      <div className="shot-scroll" aria-hidden="true">
-        <div className="shot-grid">
-          <div className="shot-layer shot-cells">
-            <div className="shot-head shot-corner" />
-            <div className="shot-head">Mon</div>
-            <div className="shot-head">Tue</div>
-            <div className="shot-head">Wed</div>
-            <div className="shot-head">Thu</div>
-            <div className="shot-head">Fri</div>
-
-            <div className="shot-time">9:00</div>
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-
-            <div className="shot-time">10:00</div>
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-
-            <div className="shot-time">11:00</div>
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-
-            <div className="shot-time">12:00</div>
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-
-            <div className="shot-time">1:00</div>
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-            <div className="shot-cell" />
-          </div>
-          <div className="shot-layer shot-blocks">
-            <div
-              className="shot-block blue"
-              style={{ gridColumn: 2, gridRow: "2 / span 2" }}
-            >
-              <strong>CS 301</strong>
-              <span>Operating Systems · B-204</span>
+    <div className="lp-week-crop">
+      <div
+        className="lp-week"
+        data-ui
+        role="img"
+        aria-label="The Slotly planner: a five-day timetable with class blocks placed on the week, from an 8am Operating Systems lecture to a Friday project studio."
+      >
+        <div className="lp-week__cells" aria-hidden="true">
+          <div className="lp-week__head" />
+          {DAYS.map((d) => (
+            <div className="lp-week__head" key={d}>
+              {d}
             </div>
-            <div
-              className="shot-block green"
-              style={{ gridColumn: 2, gridRow: 4 }}
-            >
-              <strong>MATH 214</strong>
-              <span>Linear Algebra</span>
+          ))}
+          {HOURS.map((h) => (
+            <div key={h} style={{ display: "contents" }}>
+              <div className="lp-week__time">{h}</div>
+              {DAYS.map((d) => (
+                <div className="lp-week__cell" key={d} />
+              ))}
             </div>
+          ))}
+        </div>
+        <div className="lp-week__blocks">
+          {BLOCKS.map((b) => (
             <div
-              className="shot-block yellow clash"
-              style={{ gridColumn: 3, gridRow: "3 / span 2" }}
+              key={`${b.code}-${b.day}-${b.row}`}
+              className={`lp-week__block lp-week__block--${b.tone}`}
+              style={{ gridColumn: b.day + 1, gridRow: `${b.row} / span ${b.span}` }}
             >
-              <strong>ENG 105</strong>
-              <span>Academic Writing</span>
-              <em>overlap 10:30–11:00</em>
+              <strong>{b.code}</strong>
+              <span>{b.note}</span>
             </div>
-            <div
-              className="shot-block blue"
-              style={{ gridColumn: 4, gridRow: "2 / span 2" }}
-            >
-              <strong>CS 301</strong>
-              <span>Lab · B-210</span>
-            </div>
-            <div
-              className="shot-block green"
-              style={{ gridColumn: 5, gridRow: 6 }}
-            >
-              <strong>PHYS 112</strong>
-              <span>Mechanics</span>
-            </div>
-            <div
-              className="shot-block red"
-              style={{ gridColumn: 6, gridRow: "2 / span 2" }}
-            >
-              <strong>HIST 201</strong>
-              <span>Modern Europe</span>
-            </div>
-            <div
-              className="shot-break"
-              style={{ gridColumn: "2 / span 5", gridRow: 5 }}
-            >
-              LUNCH · 12:30 – 1:30
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function FeatureVisual({ kind }: { kind: string }) {
-  if (kind === "drag") {
-    return (
-      <div className="fv-drag" aria-hidden="true">
-        <span className="fv-block ghost">CS 301</span>
-        <span className="fv-arrow">→</span>
-        <span className="fv-block blue">CS 301</span>
-        <span className="fv-block dashed">10:30 – 12:00</span>
-      </div>
-    );
-  }
-  if (kind === "clash") {
-    return (
-      <div className="fv-clash" aria-hidden="true">
-        <span className="fv-block yellow">ENG 105</span>
-        <span className="fv-block red offset">HIST 201</span>
-        <span className="fv-badge">overlap 30 min</span>
-      </div>
-    );
-  }
-  if (kind === "import") {
-    return (
-      <div className="fv-stack" aria-hidden="true">
-        <span className="fv-line">gemini-export.txt</span>
-        <span className="fv-line">schedule.ics</span>
-        <span className="fv-line">schedule-backup.json</span>
-      </div>
-    );
-  }
-  if (kind === "export") {
-    return (
-      <div className="fv-chips" aria-hidden="true">
-        <span className="fv-chip">JPG</span>
-        <span className="fv-chip">PDF</span>
-        <span className="fv-chip">.ics</span>
-        <span className="fv-chip">Print</span>
-      </div>
-    );
-  }
-  if (kind === "tabs") {
-    return (
-      <div className="fv-tabs" aria-hidden="true">
-        <span className="fv-tab active">Section A</span>
-        <span className="fv-tab">Section B</span>
-        <span className="fv-tab">Section C</span>
-      </div>
-    );
-  }
-  if (kind === "compare") {
-    return (
-      <div className="fv-compare" aria-hidden="true">
-        <span className="fv-line">Section A · clashes with 2 of your classes</span>
-        <span className="fv-line">Section A · free 10:30–17:00 Mon, Wed</span>
-        <span className="fv-line">Section B · clashes with 1 of your classes</span>
-        <span className="fv-chip">Section B fits your week better</span>
-      </div>
-    );
-  }
+function ConflictPanel() {
   return (
-    <div className="fv-offline" aria-hidden="true">
-      <span className="fv-dot-row">
-        <span className="fv-dot" />
-        <span className="fv-dot" />
-        <span className="fv-dot" />
-      </span>
-      <span className="fv-offline-label">localStorage · your device only</span>
+    <div className="lp-conflict" data-ui aria-hidden="true">
+      <span className="lp-conflict__rule lp-conflict__rule--1" />
+      <span className="lp-conflict__rule lp-conflict__rule--2" />
+      <div className="lp-conflict__bar lp-conflict__bar--a">
+        <strong>ENG 105</strong>
+        <span>Academic Writing · 10:00–12:00</span>
+      </div>
+      <div className="lp-conflict__bar lp-conflict__bar--b">
+        <strong>HIST 201</strong>
+        <span>Modern Europe · 10:30–12:00</span>
+      </div>
+      <span className="lp-conflict__badge">overlap · 90 min</span>
+    </div>
+  );
+}
+
+function AgendaPanel() {
+  return (
+    <div className="lp-agenda" data-ui aria-hidden="true">
+      <div className="lp-agenda__day">
+        <span className="lp-agenda__label">Monday</span>
+        <ul>
+          <li>
+            <span className="lp-agenda__time">8:00</span>
+            <span>CS 301 · Operating Systems</span>
+          </li>
+          <li>
+            <span className="lp-agenda__time">10:00</span>
+            <span>MATH 214 · Linear Algebra</span>
+          </li>
+          <li>
+            <span className="lp-agenda__time">12:00</span>
+            <span>PHYS 112 · Mechanics</span>
+          </li>
+        </ul>
+      </div>
+      <div className="lp-agenda__day">
+        <span className="lp-agenda__label">Tuesday</span>
+        <ul>
+          <li>
+            <span className="lp-agenda__time">9:00</span>
+            <span>ENG 105 · Academic Writing</span>
+          </li>
+          <li>
+            <span className="lp-agenda__time">1:00</span>
+            <span>CS 301 · Lab, room B-210</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function ComparePanel() {
+  return (
+    <div className="lp-compare" data-ui aria-hidden="true">
+      <div className="lp-compare__row">
+        <span />
+        <span className="lp-compare__head">Section A</span>
+        <span className="lp-compare__head">Section B</span>
+      </div>
+      <div className="lp-compare__row">
+        <span>Clashes with your classes</span>
+        <span>2</span>
+        <span>1</span>
+      </div>
+      <div className="lp-compare__row">
+        <span>Earliest start</span>
+        <span>7:30</span>
+        <span>9:00</span>
+      </div>
+      <div className="lp-compare__row">
+        <span>Free afternoon on Friday</span>
+        <span>No</span>
+        <span>Yes</span>
+      </div>
+      <div className="lp-compare__row">
+        <span>Fits your week</span>
+        <span />
+        <span className="lp-compare__pick">Section B</span>
+      </div>
     </div>
   );
 }
 
 export default function Landing() {
   usePageMeta(
-    "Slotly — Timetable builder for irregular college students.",
+    "Slotly — The timetable builder for the term you actually have.",
     "index, follow"
   );
 
@@ -356,160 +232,344 @@ export default function Landing() {
     };
   }, []);
 
-  const rootRef = useReveal();
-
   return (
-    <div className="landing" ref={rootRef}>
-      <header className="lp-nav">
-        <div className="lp-nav-inner">
-          <a className="lp-brand" href="#top" aria-label="Slotly home">
-            <svg viewBox="0 0 32 32" aria-hidden="true" width="22" height="22">
-              <rect x="2" y="6" width="28" height="24" rx="5" fill="#FDE68A" />
-              <rect x="2" y="14" width="28" height="3" fill="#78350F" opacity="0.18" />
-              <circle cx="10" cy="21" r="2" fill="#78350F" />
-              <circle cx="16" cy="21" r="2" fill="#78350F" />
-              <circle cx="22" cy="21" r="2" fill="#78350F" />
-              <rect x="7" y="2" width="2.5" height="7" rx="1.25" fill="#111111" opacity="0.7" />
-              <rect x="22.5" y="2" width="2.5" height="7" rx="1.25" fill="#111111" opacity="0.7" />
-            </svg>
-            <span>Slotly</span>
-          </a>
-          <nav className="lp-nav-links" aria-label="Page sections">
-            <a href="#features">Features</a>
-            <a href="#how">How it works</a>
-            <a href="#faq">FAQ</a>
-          </nav>
-          <Link className="lp-btn lp-btn-primary lp-nav-cta" to="/app">
-            Open planner
-          </Link>
+    <div className="landing">
+      <header className="lp-masthead">
+        <div className="lp-wrap">
+          <div className="lp-masthead__inner">
+            <p className="lp-masthead__issue">The weekly planner · No. 1</p>
+            <a className="lp-masthead__wordmark" href="#top" aria-label="Slotly, back to top">
+              Slotly
+            </a>
+            <p className="lp-masthead__tagline">
+              For the term that doesn&rsquo;t fit the usual shape
+            </p>
+            <nav className="lp-masthead__nav" aria-label="Page sections">
+              <a className="lp-masthead__link" href="#grid">
+                The grid
+              </a>
+              <a className="lp-masthead__link" href="#clashes">
+                Clashes
+              </a>
+              <a className="lp-masthead__link" href="#carry">
+                Export
+              </a>
+              <a className="lp-masthead__link" href="#faq">
+                Questions
+              </a>
+              <Link className="lp-btn lp-masthead__cta" to="/app">
+                Open the planner
+              </Link>
+            </nav>
+          </div>
         </div>
       </header>
 
       <main id="top">
-        <section className="lp-hero">
-          <p className="lp-eyebrow" data-reveal>
-            Free · No account needed
-          </p>
-          <h1 className="lp-hero-title" data-reveal>
-            The timetable builder for irregular students.
-          </h1>
-          <p className="lp-hero-sub" data-reveal>
-            Sections, cross-year subjects, schedules that change every term —
-            put them all on one grid, catch the clashes before the registrar
-            does, and take the result with you.
-          </p>
-          <div className="lp-hero-cta" data-reveal>
-            <Link className="lp-btn lp-btn-primary" to="/app">
-              Open the planner
-            </Link>
-            <a className="lp-btn lp-btn-ghost" href="#how">
-              How it works
-            </a>
-          </div>
-          <div className="lp-shot-wrap" data-reveal>
-            <ShotGrid />
-          </div>
-        </section>
-
-        <section className="lp-section" id="features">
-          <div className="lp-section-head" data-reveal>
-            <p className="lp-kicker">Features</p>
-            <h2 className="lp-section-title">What you actually need to build a week.</h2>
-          </div>
-          <div className="lp-bento">
-            {FEATURES.map((f, i) => (
-              <article
-                key={f.id}
-                className={`lp-card lp-card-${f.span}`}
-                data-reveal
-                style={{ ["--i" as string]: i } as CSSProperties}
-              >
-                <span className={`lp-tag lp-tag-${f.tagTone}`}>{f.tag}</span>
-                <h3 className="lp-card-title">{f.title}</h3>
-                <p className="lp-card-body">{f.body}</p>
-                <div className="lp-card-visual">
-                  <FeatureVisual kind={f.visual} />
+        {/* ---- Hero diptych ---- */}
+        <section className="lp-hero" id="grid">
+          <div className="lp-wrap">
+            <div className="lp-diptych">
+              <div className="lp-diptych__copy">
+                <h1 className="lp-display lp-hero__title">
+                  The term you actually have.
+                </h1>
+                <p className="lp-lede lp-hero__lede">
+                  Slotly lays a term of classes onto one weekly grid — the
+                  cross-year subject, the two sections you are torn between,
+                  the lab that moved to Thursday. Move things until the week
+                  reads like something you can live with.
+                </p>
+                <div className="lp-hero__cta">
+                  <Link className="lp-btn lp-btn--solid" to="/app">
+                    Open the planner
+                  </Link>
+                  <a className="lp-link" href="#clashes">
+                    See how it handles clashes
+                  </a>
                 </div>
-              </article>
-            ))}
+                <p className="lp-hero__hint">
+                  No account, no sign-in. Runs in your browser.
+                </p>
+              </div>
+              <div className="lp-diptych__media">
+                <WeekPanel />
+                <p className="lp-panel-cap">A sample term, laid out on the grid.</p>
+              </div>
+            </div>
           </div>
         </section>
 
+        {/* ---- Clashes ---- */}
+        <section className="lp-section" id="clashes">
+          <div className="lp-wrap">
+            <div className="lp-diptych lp-diptych--flip">
+              <div className="lp-diptych__copy">
+                <h2 className="lp-h2">See the clash before the registrar does.</h2>
+                <p className="lp-body">
+                  Two classes in the same hour are flagged on the grid with the
+                  exact overlap written on them, so you sort it out on paper
+                  instead of discovering it in week three when both roll calls
+                  land on the same slot.
+                </p>
+                <p className="lp-body">
+                  The check runs as you move blocks — drag a class onto another
+                  and the overlap appears, then disappears the moment you find
+                  it a home.
+                </p>
+              </div>
+              <div className="lp-diptych__media">
+                <ConflictPanel />
+                <p className="lp-panel-cap">Two blocks, one hour, flagged.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Carry it with you ---- */}
+        <section className="lp-section" id="carry">
+          <div className="lp-wrap">
+            <div className="lp-diptych">
+              <div className="lp-diptych__copy">
+                <h2 className="lp-h2">Read it as a grid, or as a list.</h2>
+                <p className="lp-body">
+                  Switch the same schedule to Agenda for a running list of the
+                  week, day by day, with times down the left. Total hours and
+                  free windows fall out of it without you counting anything.
+                </p>
+                <p className="lp-body">
+                  Then take the week wherever it needs to go — a JPG for the
+                  group chat, a PDF for the wall above the desk, a .ics for
+                  Google Calendar, or a link that reopens the exact schedule.
+                </p>
+              </div>
+              <div className="lp-diptych__media">
+                <AgendaPanel />
+                <p className="lp-panel-cap">The same two days, read as a list.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Compare sections ---- */}
+        <section className="lp-section" id="compare">
+          <div className="lp-wrap">
+            <div className="lp-diptych lp-diptych--flip">
+              <div className="lp-diptych__copy">
+                <h2 className="lp-h2">Two sections, side by side.</h2>
+                <p className="lp-body">
+                  Paste in both section schedules and let Gemini read them. Slotly
+                  puts them next to what you already have and shows which one
+                  clashes with fewer of your classes, when each starts, and
+                  where the free windows fall — before you commit to either.
+                </p>
+                <p className="lp-body">
+                  It does not tell you which to take. It just lays both out,
+                  honestly, on the same grid you have been staring at.
+                </p>
+              </div>
+              <div className="lp-diptych__media">
+                <ComparePanel />
+                <p className="lp-panel-cap">Section A and Section B, measured against your week.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Photographic plate ---- */}
+        <figure className="lp-plate">
+          <img
+            className="lp-plate__img"
+            src="/landing/alexandra-road-campus-c-1890s.jpg"
+            alt="An archival photograph of a Victorian college building and its grounds."
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption className="lp-plate__cap">
+            The timetable is a very old idea — a building, a bell, and a week
+            that has to hold together. Alexandra Road campus, c. 1890s. Swansea
+            Metropolitan University archive, CC BY-SA 3.0.
+          </figcaption>
+        </figure>
+
+        {/* ---- Facts ---- */}
+        <section className="lp-section" id="quiet">
+          <div className="lp-wrap">
+            <ul className="lp-facts">
+              {FACTS.map((f) => (
+                <li key={f.head}>
+                  <strong>{f.head}</strong>
+                  {f.body}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* ---- How it works + photo ---- */}
         <section className="lp-section" id="how">
-          <div className="lp-section-head" data-reveal>
-            <p className="lp-kicker">How it works</p>
-            <h2 className="lp-section-title">Three steps, one browser tab.</h2>
+          <div className="lp-wrap">
+            <div className="lp-diptych">
+              <div className="lp-diptych__copy">
+                <h2 className="lp-h2">Three moves, one browser tab.</h2>
+                <ol className="lp-steps" style={{ gridTemplateColumns: "minmax(0, 1fr)", gap: "var(--space-lg)" }}>
+                  {STEPS.map((s) => (
+                    <li className="lp-step" key={s.title}>
+                      <h3 className="lp-step__title">{s.title}</h3>
+                      <p>{s.body}</p>
+                      {s.kbd && (
+                        <p>
+                          {s.kbd.map((k) => (
+                            <kbd key={k}>{k}</kbd>
+                          ))}
+                          <span className="lp-hero__hint">{s.kbdNote}</span>
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="lp-diptych__media">
+                <figure className="lp-figure">
+                  <img
+                    className="lp-figure__img"
+                    src="/landing/ohio-university-lecture-hall.jpg"
+                    alt="A wide lecture hall with rows of seats facing a chalkboard."
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <figcaption className="lp-figure__cap">
+                    A hall that seats a few hundred; your week still only fits
+                    one class at a time. Ohio University lecture hall. Garden
+                    Sprite, CC0.
+                  </figcaption>
+                </figure>
+              </div>
+            </div>
           </div>
-          <ol className="lp-steps">
-            {STEPS.map((s, i) => (
-              <li
-                key={s.n}
-                className="lp-step"
-                data-reveal
-                style={{ ["--i" as string]: i } as CSSProperties}
-              >
-                <span className="lp-step-num" aria-hidden="true">
-                  {s.n}
-                </span>
-                <h3 className="lp-step-title">{s.title}</h3>
-                <p className="lp-step-body">{s.body}</p>
-                {s.kbd && (
-                  <p className="lp-kbd-row">
-                    {s.kbd.map((k, idx) => (
-                      <kbd key={`${k}-${idx}`}>{k}</kbd>
-                    ))}
-                    <span className="lp-kbd-note">{s.kbdNote}</span>
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
         </section>
 
+        {/* ---- Privacy ---- */}
+        <section className="lp-section">
+          <div className="lp-wrap">
+            <div className="lp-diptych lp-diptych--flip">
+              <div className="lp-diptych__copy">
+                <h2 className="lp-h2">It never asks who you are.</h2>
+                <p className="lp-body">
+                  No account, no sign-in, no server quietly holding your
+                  timetable. Everything is stored in your browser, on your
+                  device, and Download backup gives you a JSON copy you can
+                  carry anywhere — including onto the next computer.
+                </p>
+                <p className="lp-body">
+                  That is the whole point of a planner for a week that is
+                  already complicated enough.
+                </p>
+              </div>
+              <div className="lp-diptych__media">
+                <figure className="lp-figure">
+                  <img
+                    className="lp-figure__img"
+                    src="/landing/sias-library-students-studying-2017.jpg"
+                    alt="Two students reading at a library table, surrounded by shelves of books."
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <figcaption className="lp-figure__cap">
+                    Nothing about the week leaves the room. Sias University
+                    library, 2017. Gary Todd, CC0.
+                  </figcaption>
+                </figure>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- FAQ ---- */}
         <section className="lp-section" id="faq">
-          <div className="lp-section-head" data-reveal>
-            <p className="lp-kicker">FAQ</p>
-            <h2 className="lp-section-title">Straight answers.</h2>
-          </div>
-          <div className="lp-faq" data-reveal>
-            {FAQ.map((item) => (
-              <details key={item.q} className="lp-faq-item">
-                <summary>
-                  <span>{item.q}</span>
-                  <span className="lp-faq-icon" aria-hidden="true" />
-                </summary>
-                <p>{item.a}</p>
-              </details>
-            ))}
+          <div className="lp-wrap">
+            <dl className="lp-faq">
+              {FAQ.map((item) => (
+                <div className="lp-faq__item" key={item.q}>
+                  <dt>{item.q}</dt>
+                  <dd>{item.a}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 
-        <section className="lp-final" data-reveal>
-          <h2 className="lp-final-title">
-            Plan the whole week before your coffee gets cold.
-          </h2>
-          <Link className="lp-btn lp-btn-primary lp-btn-lg" to="/app">
-            Open the planner
-          </Link>
+        {/* ---- Closing ---- */}
+        <section className="lp-closing">
+          <div className="lp-wrap">
+            <div className="lp-closing__inner">
+              <h2 className="lp-display lp-closing__title">
+                Plan the week while the kettle boils.
+              </h2>
+              <Link className="lp-btn lp-btn--solid" to="/app">
+                Open the planner
+              </Link>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="lp-footer">
-        <div className="lp-footer-inner">
-          <span className="lp-footer-brand">Slotly</span>
-          <span className="lp-footer-note">
-            Built by{" "}
-            <a
-              href="https://t.me/drnx64"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              @drnx64
-            </a>
-          </span>
-          <Link className="lp-footer-link" to="/app">
-            Open planner
-          </Link>
+      <footer className="lp-colophon">
+        <div className="lp-wrap">
+          <div className="lp-colophon__grid">
+            <div className="lp-colophon__col">
+              <span className="lp-colophon__brand">Slotly</span>
+              <p>
+                A free, browser-only timetable builder for a term that does not
+                fit the usual shape.
+              </p>
+            </div>
+            <div className="lp-colophon__col">
+              <h2>Pages</h2>
+              <ul>
+                <li>
+                  <a href="#grid">The grid</a>
+                </li>
+                <li>
+                  <a href="#clashes">Clashes</a>
+                </li>
+                <li>
+                  <a href="#carry">Export</a>
+                </li>
+                <li>
+                  <a href="#faq">Questions</a>
+                </li>
+              </ul>
+            </div>
+            <div className="lp-colophon__col">
+              <h2>Photographs</h2>
+              <p>
+                Alexandra Road campus, c. 1890s — Swansea Metropolitan
+                University archive (CC BY-SA 3.0).
+              </p>
+              <p>
+                Ohio University lecture hall — Garden Sprite (CC0). Sias
+                University library, 2017 — Gary Todd (CC0).
+              </p>
+            </div>
+            <div className="lp-colophon__col">
+              <h2>Type &amp; build</h2>
+              <p>
+                Set in Fraunces and Newsreader. Built with React and Vite.
+                Timetables rendered and exported entirely in the browser.
+              </p>
+            </div>
+          </div>
+          <div className="lp-colophon__fine">
+            <span>© 2026 Slotly. Made for whoever is holding the mess.</span>
+            <span>
+              Built by{" "}
+              <a href="https://t.me/drnx64" target="_blank" rel="noopener noreferrer">
+                @drnx64
+              </a>
+            </span>
+            <Link to="/app">Open the planner</Link>
+          </div>
         </div>
       </footer>
     </div>

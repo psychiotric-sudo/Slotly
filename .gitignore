@@ -28,3 +28,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Design-tool working files (keep .hallmark/log.json tracked)
+.hallmark/shots/
+.taste-skill/

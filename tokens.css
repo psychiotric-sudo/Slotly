@@ -1,0 +1,76 @@
+/* ------------------------------------------------------------------ *
+ * Slotly design tokens
+ * Hallmark · genre: editorial · theme: Newsprint
+ * paper-band: light · display-style: roman-serif · accent-hue: warm
+ * Every colour and font-family used by the landing page is named here.
+ * The landing stylesheet imports this file and references tokens only.
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* ----- colour: Newsprint -------------------------------------------- *
+   * A bone/newsprint paper tinted toward the warm anchor hue (chroma kept
+   * low so the page reads as paper, not cream); ink is a warm near-black,
+   * never pure #000; the accent is a single warm ochre used faintly.      */
+  --color-paper: oklch(96.4% 0.007 84);
+  --color-paper-2: oklch(93.6% 0.01 84);
+  --color-paper-3: oklch(90% 0.013 84);
+  --color-rule: oklch(80% 0.012 82);
+  --color-rule-strong: oklch(63% 0.014 80);
+  --color-ink: oklch(22.5% 0.011 72);
+  --color-ink-2: oklch(33% 0.013 74);
+  --color-muted: oklch(45% 0.014 76);
+  --color-accent: oklch(47% 0.108 55);
+  --color-accent-ink: oklch(97% 0.008 84);
+  --color-focus: oklch(38% 0.1 55);
+
+  /* timetable sample blocks (used by the interface-fragment panels) */
+  --color-block-blue: oklch(84% 0.055 245);
+  --color-block-blue-ink: oklch(35% 0.09 250);
+  --color-block-green: oklch(86% 0.06 150);
+  --color-block-green-ink: oklch(34% 0.08 150);
+  --color-block-amber: oklch(89% 0.07 82);
+  --color-block-amber-ink: oklch(40% 0.08 68);
+  --color-block-rose: oklch(85% 0.065 22);
+  --color-block-rose-ink: oklch(41% 0.11 22);
+
+  /* ----- type ---------------------------------------------------------- */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "Newsreader", Georgia, "Times New Roman", serif;
+
+  --text-sm: 0.8125rem;
+  --text-base: 1.125rem;
+  --text-md: 1.375rem;
+  --text-lg: 1.75rem;
+  --text-xl: 2.25rem;
+  --text-2xl: 2.75rem;
+  --text-display: clamp(2.5rem, 6vw, 6.5rem);
+
+  /* ----- space (4pt scale) --------------------------------------------- */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --space-2xl: 4rem;
+  --space-3xl: 6rem;
+  --space-4xl: 9rem;
+  --page-gutter: clamp(1.25rem, 5vw, 3.5rem);
+  --measure: 66ch;
+
+  /* ----- rules / radius ------------------------------------------------ */
+  --rule-hair: 1px;
+  --rule-thick: 3px;
+  --radius-xs: 2px;
+
+  /* ----- motion -------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+
+  /* ----- z ------------------------------------------------------------- */
+  --z-base: 1;
+  --z-raised: 10;
+  --z-sticky: 200;
+  --z-modal: 400;
+}
